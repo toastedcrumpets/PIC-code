@@ -58,6 +58,11 @@ INIT_STABLE_OSC
 	call touch_init
 	call blank_framebuffer
 
+	
+	movlw .0
+	movwf char_num
+	call blit_char
+
 MAIN
 	call transmit_framebuffer
 

@@ -4,7 +4,9 @@
 
 void printByte(const BYTE bitfield)
 {
-    BYTE mask = 0X80 ;
+    BYTE mask = 0X01;
+    
+    std::cout << "b'";
     while( mask )
     {
         if( (mask & bitfield) )
@@ -12,8 +14,9 @@ void printByte(const BYTE bitfield)
         else
 	  std::cout << '0';
 
-        mask = mask >> 1 ;
+        mask = mask << 1 ;
     }
+    std::cout << "'";
 }
 
 int main()

@@ -7,9 +7,47 @@
 #define fb_rows .8 ;*8=64 pixels
 #define fb_dbl_row_bits .15
 
+ include "chartable.inc"
+
  cblock
 fb_column_ctr, fb_row_ctr
  endc
+
+;/////////////////////////////////////////
+ cblock
+char_num,char_length,
+tmp_char_L,tmp_char_H,tmp_char_U
+ endc
+
+blit_char
+	;Load character
+	movlw HIGH(char_table)
+	movwf TBLPTRH
+
+	movlw UPPER(char_table)
+	movwf TBLPTRU
+
+	movlw LOW(char_table)
+	addwf char_num
+
+	btfsc STATUS,C
+	incf TBLPTRH
+	
+	movwf TBLPTRL
+	;Load the number of cols per character
+	TBLRD*+
+	movff TABLAT, char_length
+	;Now goto the character
+	LoadTableFromTABLAT
+
+	call Load_framebuffer
+	
+blit_char_loop
+	TBLRD*+
+	movff TABLAT,POSTINC0
+	dcfsnz char_length
+	return
+	bra blit_char_loop
 
 ;/////////////////////////////////////////
 Load_framebuffer

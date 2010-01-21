@@ -6,10 +6,11 @@ L_tmp,H_tmp,U_tmp
  endc
 
 LoadTableFromTABLAT macro
+	TBLRD*+
 	movff TABLAT,L_tmp
-	TBLRD+*
+	TBLRD*+
 	movff TABLAT,H_tmp
-	TBLRD+*
+	TBLRD*+
 	movff TABLAT,TBLPTRU
 	movff H_tmp,TBLPTRH
 	movff L_tmp,TBLPTRL
