@@ -47,16 +47,12 @@ blank_framebuffer_end
 ;/////////////////////////////////////////
 ;Goes to the row specified in fb_row_ctr
 ;Assumes a Load_framebuffer has already occured
- cblock
-fb_row_num
- endc
-
 fb_goto_row
-	movwf fb_row_num
-	btfsc fb_row_num,0
+	btfsc WREG,0
 	bsf FSR0L,7
 
-	rrcf fb_row_num,W
+	bcf STATUS,C
+	rrcf WREG,W
 	addwf FSR0H,F
 	return
 
@@ -66,14 +62,14 @@ fb_goto_col
 	return
 
 transmit_framebuffer
-	call transmit_framebuffer_row
-	call transmit_framebuffer_row
-	call transmit_framebuffer_row
-	call transmit_framebuffer_row
-	call transmit_framebuffer_row
-	call transmit_framebuffer_row
-	call transmit_framebuffer_row
-	call transmit_framebuffer_row
+	rcall transmit_framebuffer_row
+	rcall transmit_framebuffer_row
+	rcall transmit_framebuffer_row
+	rcall transmit_framebuffer_row
+	rcall transmit_framebuffer_row
+	rcall transmit_framebuffer_row
+	rcall transmit_framebuffer_row
+	rcall transmit_framebuffer_row
 	return	
 
 ;/////////////////////////////////////////
@@ -89,7 +85,7 @@ transmit_framebuffer_row
 
 	;Modify the FSR to the right row
 	movf fb_row_ctr,W
-	call fb_goto_row
+	rcall fb_goto_row
 
 	;Goto the first column 
 	movlw .0
@@ -113,6 +109,8 @@ pixel_x, pixel_y, pixel_mask, tmp_var
  endc
 
 fb_set_pixel
+	call Load_framebuffer
+
 	;Bit mashing to get the correct pixel
 	movlw b'00000001'
 	btfsc pixel_y,1
@@ -127,26 +125,15 @@ fb_set_pixel
 	btfsc pixel_y,2
 	swapf pixel_mask,F
 
-	;Now get the row
-	bcf STATUS,C
-	rrcf pixel_y
-	bcf STATUS,C
-	rrcf pixel_y
-	bcf STATUS,C
-	rrcf pixel_y
-
-	call Load_framebuffer
-	;Goto the row
-	btfsc pixel_y,0
-	bsf FSR0L,7
-	rrcf pixel_y,W
-	addwf FSR0H,F
+	;Now goto the row
+	rlncf pixel_y
+	swapf pixel_y,W
+	rcall fb_goto_row
 
 	;Print the pixel at the column
 	movf pixel_x,W
-	movf PLUSW0,W
-	iorwf pixel_mask,F
-	movf pixel_x,W
-	movff pixel_mask, PLUSW0	
+	rcall fb_goto_col
+	movf pixel_mask,W
+	iorwf INDF0,F
 
 	return
