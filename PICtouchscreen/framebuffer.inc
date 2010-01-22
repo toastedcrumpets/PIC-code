@@ -65,9 +65,20 @@ fb_goto_col
 	addwf FSR0L,F
 	return
 
+transmit_framebuffer
+	call transmit_framebuffer_row
+	call transmit_framebuffer_row
+	call transmit_framebuffer_row
+	call transmit_framebuffer_row
+	call transmit_framebuffer_row
+	call transmit_framebuffer_row
+	call transmit_framebuffer_row
+	call transmit_framebuffer_row
+	return	
+
 ;/////////////////////////////////////////
 ;Transmits a single row, as a whole screen is too long
-transmit_framebuffer
+transmit_framebuffer_row
 	call Load_framebuffer
 
 	;Increment the row number and keep in 0-7

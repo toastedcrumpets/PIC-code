@@ -1,8 +1,7 @@
 CHARACTER_TABLE CODE
-
 char_table
 	global char_table
-	db .8,LOW(char_data_0),HIGH(char_data_0),UPPER(char_data_0)
+	db .4,LOW(char_data_0),HIGH(char_data_0),UPPER(char_data_0)
 	db .2,LOW(char_data_1),HIGH(char_data_1),UPPER(char_data_1)
 	db .3,LOW(char_data_2),HIGH(char_data_2),UPPER(char_data_2)
 	db .5,LOW(char_data_3),HIGH(char_data_3),UPPER(char_data_3)
@@ -104,7 +103,7 @@ char_table
 	db .5,LOW(char_data_99),HIGH(char_data_99),UPPER(char_data_99)
 
 char_data_0
-	db b'00111100',b'01000010',b'10101001',b'10000101',b'10000101',b'10101001',b'01000010',b'00111100'
+	db 0x00,0x00,0x00,0x00
 char_data_1
 	db b'00000000',b'01111010'
 char_data_2

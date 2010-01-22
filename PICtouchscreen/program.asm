@@ -59,16 +59,11 @@ INIT_STABLE_OSC
 
 	;//////////////////////////////////////
 	;Setup the touch panel
-	;call touch_init
+	call touch_init
 	call blank_framebuffer
 
-	
-	call Load_framebuffer
-
-	LoadTable(printstring)
-	call blit_print_table_string
 MAIN
-	call transmit_framebuffer
+	call transmit_framebuffer_row
 
 	call touch_read_state
 	call fast_normalise_coords
@@ -90,11 +85,9 @@ MAIN
 
 	bra MAIN
 
-printstring db "Testing printin",0x00
-
  cblock
 bar_counter, bar_val, bar_piece
  endc
 
 
-end
+ end

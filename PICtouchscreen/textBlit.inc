@@ -1,6 +1,6 @@
 ;Commands for text blitting
 
-extern char_table
+ extern char_table
 
 ;////////////////////////////////////////////////////////////////////
 ;Expects the char number in W

@@ -37,6 +37,8 @@ touch_wait_for_release
 	return
 
 ;////////////////////////////////////////////
+touch_calibrate_string db "Please touch the arrows",0x00
+
 touch_init
 	clrf touched
 	call touch_reset_pins
@@ -54,17 +56,21 @@ touch_init
 
 	;//////////////////////////////
 	;Calibrate the screen
+	;Blank it first
+	call blank_framebuffer
+	;Write the calibrate phrase on
+	call Load_framebuffer
+	movlw .3
+	call fb_goto_row
+	LoadTable(touch_calibrate_string)
+	call blit_print_table_string
 
 	;Arrow in the bottom left corner
-	movlw .0
-	call LCD_goto_column
-	call LCD_goto_row
-	movlw b'00000111'
-	call LCD_data_send
-	movlw b'00000001'
-	call LCD_data_send
-	movlw b'00000001'
-	call LCD_data_send
+	call Load_framebuffer
+	movlw .99
+	call blit_char
+
+	call transmit_framebuffer
 
 	;Wait for release
 	call touch_wait_for_release
@@ -78,9 +84,6 @@ touch_calibrate_step_1
 	btfss touched,0
 	bra touch_calibrate_step_1
 
-	;Blank the arrow
-	call LCD_clear
-
 	;Save the minima
 	movff x_pos,x_min
 	movff y_pos,y_min
@@ -90,17 +93,22 @@ touch_calibrate_step_1
 	;Wait for release
 	call touch_wait_for_release
 
+	;Blank the old arrow
+	call Load_framebuffer
+	movlw .0
+	call blit_char
+	movlw .0
+	call blit_char
+
 	;Draw another cross in the top right
-	movlw .125
-	call LCD_goto_column
 	movlw .7
-	call LCD_goto_row
-	movlw b'10000000'
-	call LCD_data_send
-	movlw b'10000000'
-	call LCD_data_send
-	movlw b'11100000'
-	call LCD_data_send
+	call fb_goto_row
+	movlw .115
+	call fb_goto_col
+	movlw .98
+	call blit_char
+
+	call transmit_framebuffer
 
 touch_calibrate_step_2
 	;Wait for touch
@@ -111,9 +119,6 @@ touch_calibrate_step_2
 	;Abort if contact was lost
 	btfss touched,0
 	bra touch_calibrate_step_2
-
-	;Blank the arrow
-	call LCD_clear
 
 	;Save the max
 	movff x_pos,x_range
