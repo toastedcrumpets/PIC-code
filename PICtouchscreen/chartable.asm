@@ -1,4 +1,7 @@
+CHARACTER_TABLE CODE
+
 char_table
+	global char_table
 	db .8,LOW(char_data_0),HIGH(char_data_0),UPPER(char_data_0)
 	db .2,LOW(char_data_1),HIGH(char_data_1),UPPER(char_data_1)
 	db .3,LOW(char_data_2),HIGH(char_data_2),UPPER(char_data_2)
@@ -300,3 +303,4 @@ char_data_98
 	db b'10001000',b'10010000',b'10100000',b'11000000',b'11111000'
 char_data_99
 	db b'00011111',b'00000011',b'00000101',b'00001001',b'00010001'
+ end

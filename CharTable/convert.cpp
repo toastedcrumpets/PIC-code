@@ -21,9 +21,18 @@ void printByte(const BYTE bitfield)
 
 int main()
 {
-  std::cout << "char_table\n";
-  
-  for (size_t i(0); i < nr_chrs_S; ++i)
+  std::cout << "CHARACTER_TABLE CODE\n"
+	    << "char_table\n"
+	    << "\tglobal char_table\n";
+
+  std::cout << "\tdb ." << 4
+	    << ",LOW(char_data_" << 0  
+	    << "),HIGH(char_data_" << 0
+	    << "),UPPER(char_data_" << 0
+	    << ")\n";
+
+
+  for (size_t i(1); i < nr_chrs_S; ++i)
     std::cout << "\tdb ." << int(lentbl_S[i])
 	      << ",LOW(char_data_" << i  
 	      << "),HIGH(char_data_" << i
@@ -31,7 +40,12 @@ int main()
 	      << ")\n";
 
   std::cout << "\n";
-  for (size_t i(0); i < nr_chrs_S; ++i)
+
+  std::cout << "char_data_" << 0
+	    << "\n\tdb 0x00,0x00,0x00,0x00\n";
+
+
+  for (size_t i(1); i < nr_chrs_S; ++i)
     {
       std::cout << "char_data_" << i
 		<< "\n\tdb ";

@@ -7,47 +7,9 @@
 #define fb_rows .8 ;*8=64 pixels
 #define fb_dbl_row_bits .15
 
- include "chartable.inc"
-
  cblock
 fb_column_ctr, fb_row_ctr
  endc
-
-;/////////////////////////////////////////
- cblock
-char_num,char_length,
-tmp_char_L,tmp_char_H,tmp_char_U
- endc
-
-blit_char
-	;Load character
-	movlw HIGH(char_table)
-	movwf TBLPTRH
-
-	movlw UPPER(char_table)
-	movwf TBLPTRU
-
-	movlw LOW(char_table)
-	addwf char_num
-
-	btfsc STATUS,C
-	incf TBLPTRH
-	
-	movwf TBLPTRL
-	;Load the number of cols per character
-	TBLRD*+
-	movff TABLAT, char_length
-	;Now goto the character
-	LoadTableFromTABLAT
-
-	call Load_framebuffer
-	
-blit_char_loop
-	TBLRD*+
-	movff TABLAT,POSTINC0
-	dcfsnz char_length
-	return
-	bra blit_char_loop
 
 ;/////////////////////////////////////////
 Load_framebuffer
@@ -56,6 +18,7 @@ Load_framebuffer
 	movlw 0x00
 	movwf FSR0L
 	return
+
 ;/////////////////////////////////////////
 blank_framebuffer
 	call Load_framebuffer
@@ -80,6 +43,28 @@ blank_framebuffer_col_loop
 blank_framebuffer_end
 	return
 
+
+;/////////////////////////////////////////
+;Goes to the row specified in fb_row_ctr
+;Assumes a Load_framebuffer has already occured
+ cblock
+fb_row_num
+ endc
+
+fb_goto_row
+	movwf fb_row_num
+	btfsc fb_row_num,0
+	bsf FSR0L,7
+
+	rrcf fb_row_num,W
+	addwf FSR0H,F
+	return
+
+fb_goto_col
+	andlw b'01111111'
+	addwf FSR0L,F
+	return
+
 ;/////////////////////////////////////////
 ;Transmits a single row, as a whole screen is too long
 transmit_framebuffer
@@ -92,11 +77,8 @@ transmit_framebuffer
 	call LCD_goto_row
 
 	;Modify the FSR to the right row
-	btfsc fb_row_ctr,0
-	bsf FSR0L,7
-
-	rrcf fb_row_ctr,W
-	addwf FSR0H,F
+	movf fb_row_ctr,W
+	call fb_goto_row
 
 	;Goto the first column 
 	movlw .0

@@ -20,10 +20,14 @@ w_temp
 
  include "touchPanel.inc"
  include "framebuffer.inc"
+ include "textBlit.inc"
 
  cblock
 sense_ctr
  endc
+
+Program CODE
+
 INIT
 	;Start by setting the Int. oscillator to 4Mhz
 	movlw b'01110010'
@@ -55,14 +59,14 @@ INIT_STABLE_OSC
 
 	;//////////////////////////////////////
 	;Setup the touch panel
-	call touch_init
+	;call touch_init
 	call blank_framebuffer
 
 	
-	movlw .0
-	movwf char_num
-	call blit_char
+	call Load_framebuffer
 
+	LoadTable(printstring)
+	call blit_print_table_string
 MAIN
 	call transmit_framebuffer
 
@@ -85,6 +89,8 @@ MAIN
 	call fb_set_pixel
 
 	bra MAIN
+
+printstring db "Testing printin",0x00
 
  cblock
 bar_counter, bar_val, bar_piece

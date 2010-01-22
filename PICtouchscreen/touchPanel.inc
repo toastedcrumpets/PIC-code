@@ -28,12 +28,14 @@ touch_wait_for_touch
 	btfss touched,0
 	bra touch_wait_for_touch
 	return
+
 ;////////////////////////////////////////////
 touch_wait_for_release
 	call touch_check_touch
 	btfsc touched,0
 	bra touch_wait_for_release
 	return
+
 ;////////////////////////////////////////////
 touch_init
 	clrf touched
