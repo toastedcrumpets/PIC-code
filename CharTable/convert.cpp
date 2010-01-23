@@ -25,15 +25,8 @@ int main()
 	    << "char_table\n"
 	    << "\tglobal char_table\n";
 
-  std::cout << "\tdb ." << 2
-	    << ",LOW(char_data_" << 0  
-	    << "),HIGH(char_data_" << 0
-	    << "),UPPER(char_data_" << 0
-	    << ")\n";
-
-
-  for (size_t i(1); i < nr_chrs_S; ++i)
-    std::cout << "\tdb ." << int(lentbl_S[i])
+  for (size_t i(0); i < nr_chrs_S; ++i)
+    std::cout << "\tdb ." << (int(lentbl_S[i]) ? int(lentbl_S[i]): 1)
 	      << ",LOW(char_data_" << i  
 	      << "),HIGH(char_data_" << i
 	      << "),UPPER(char_data_" << i
@@ -41,11 +34,7 @@ int main()
 
   std::cout << "\n";
 
-  std::cout << "char_data_" << 0
-	    << "\n\tdb 0x00,0x00\n";
-
-
-  for (size_t i(1); i < nr_chrs_S; ++i)
+  for (size_t i(0); i < nr_chrs_S; ++i)
     {
       std::cout << "char_data_" << i
 		<< "\n\tdb ";

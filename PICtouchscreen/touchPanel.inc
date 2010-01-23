@@ -37,7 +37,8 @@ touch_wait_for_release
 	return
 
 ;////////////////////////////////////////////
-touch_calibrate_string db "     Please press the arrows",0x00
+touch_calibrate_string_1 db "CALIBRATION",0x00
+touch_calibrate_string_2 db "Please press the arrows",0x00
 
 touch_init
 	clrf touched
@@ -60,9 +61,18 @@ touch_init
 	call blank_framebuffer
 	;Write the calibrate phrase on
 	call Load_framebuffer
+	movlw .4
+	call fb_goto_row
+	movlw .38
+	call fb_goto_col
+	LoadTable(touch_calibrate_string_1)
+	call blit_print_table_string
+	call Load_framebuffer
 	movlw .3
 	call fb_goto_row
-	LoadTable(touch_calibrate_string)
+	movlw .18
+	call fb_goto_col
+	LoadTable(touch_calibrate_string_2)
 	call blit_print_table_string
 
 	;Arrow in the bottom left corner
