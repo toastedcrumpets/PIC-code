@@ -7,10 +7,6 @@
 #define fb_rows .8 ;*8=64 pixels
 #define fb_dbl_row_bits .15
 
- cblock
-fb_column_ctr, fb_row_ctr
- endc
-
 ;/////////////////////////////////////////
 Load_framebuffer
 	movlw 0x02
@@ -20,29 +16,37 @@ Load_framebuffer
 	return
 
 ;/////////////////////////////////////////
+ cblock
+fb_row_ctr
+ endc
+
 blank_framebuffer
 	call Load_framebuffer
-
 	clrf fb_row_ctr
+
 blank_framebuffer_row_loop
-	clrf fb_column_ctr
 	movlw fb_rows
 	xorwf fb_row_ctr,W
 	bz blank_framebuffer_end
 	incf fb_row_ctr
-blank_framebuffer_col_loop
-	movlw fb_columns
-	xorwf fb_column_ctr,W
-	bz blank_framebuffer_row_loop
-
-	clrf POSTINC0
-
-	incf fb_column_ctr
-	bra blank_framebuffer_col_loop	
+	
+	rcall blank_framebuffer_line
+	bra blank_framebuffer_row_loop
 
 blank_framebuffer_end
 	return
 
+;/////////////////////////////////////////
+blank_framebuffer_line
+	;goto the 0th column
+	movlw b'10000000'
+	andwf FSR0L
+	movlw .128
+blank_framebuffer_loop
+	clrf POSTINC0
+	dcfsnz WREG
+	return
+	bra blank_framebuffer_loop
 
 ;/////////////////////////////////////////
 ;Goes to the row specified in fb_row_ctr
@@ -74,17 +78,21 @@ transmit_framebuffer
 
 ;/////////////////////////////////////////
 ;Transmits a single row, as a whole screen is too long
+ cblock
+fb_trans_row_ctr
+fb_trans_col_ctr
+ endc
 transmit_framebuffer_row
 	call Load_framebuffer
 
 	;Increment the row number and keep in 0-7
-	incf fb_row_ctr,W	
+	incf fb_trans_row_ctr,W	
 	andlw b'00000111'
-	movwf fb_row_ctr
+	movwf fb_trans_row_ctr
 	call LCD_goto_row
 
 	;Modify the FSR to the right row
-	movf fb_row_ctr,W
+	movf fb_trans_row_ctr,W
 	rcall fb_goto_row
 
 	;Goto the first column 
@@ -93,19 +101,19 @@ transmit_framebuffer_row
 
 	;Reset the column counter
 	movlw fb_columns
-	movwf fb_column_ctr
+	movwf fb_trans_col_ctr
 transmit_framebuffer_col_loop
 	movf POSTINC0,W
 	call LCD_data_send
 
-	dcfsnz fb_column_ctr
+	dcfsnz fb_trans_col_ctr
 	return
 
 	bra transmit_framebuffer_col_loop
 
 ;/////////////////////////////////////////
  cblock
-pixel_x, pixel_y, pixel_mask, tmp_var
+pixel_x, pixel_y, pixel_mask
  endc
 
 fb_set_pixel

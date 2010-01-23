@@ -37,7 +37,7 @@ touch_wait_for_release
 	return
 
 ;////////////////////////////////////////////
-touch_calibrate_string db "Please touch the arrows",0x00
+touch_calibrate_string db "     Please press the arrows",0x00
 
 touch_init
 	clrf touched
@@ -95,15 +95,14 @@ touch_calibrate_step_1
 
 	;Blank the old arrow
 	call Load_framebuffer
-	movlw .0
-	call blit_char
-	movlw .0
-	call blit_char
+	call blank_framebuffer_line
+
 
 	;Draw another cross in the top right
+	call Load_framebuffer
 	movlw .7
 	call fb_goto_row
-	movlw .115
+	movlw .123
 	call fb_goto_col
 	movlw .98
 	call blit_char

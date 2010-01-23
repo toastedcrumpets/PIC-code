@@ -25,7 +25,7 @@ int main()
 	    << "char_table\n"
 	    << "\tglobal char_table\n";
 
-  std::cout << "\tdb ." << 4
+  std::cout << "\tdb ." << 2
 	    << ",LOW(char_data_" << 0  
 	    << "),HIGH(char_data_" << 0
 	    << "),UPPER(char_data_" << 0
@@ -42,7 +42,7 @@ int main()
   std::cout << "\n";
 
   std::cout << "char_data_" << 0
-	    << "\n\tdb 0x00,0x00,0x00,0x00\n";
+	    << "\n\tdb 0x00,0x00\n";
 
 
   for (size_t i(1); i < nr_chrs_S; ++i)
