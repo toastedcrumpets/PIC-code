@@ -27,9 +27,9 @@ BitVar,ByteVar
  include    "macros.inc"
 
  ; EA DOG LCD driver
- #define LCD_RS  PORTA,0
+ #define LCD_RS  PORTA,4
  #define LCD_SCL PORTA,1
- #define LCD_SI  PORTA,2
+ #define LCD_SI  PORTA,0
  #define LCD_3L5V
  include "LCD.inc"
 
@@ -39,7 +39,7 @@ BitVar,ByteVar
  ; The menu navigation driver
  #define Menu_btnUp PORTB,5
  #define Menu_btnDwn PORTB,0
- #define Menu_btnSel PORTA,4
+ #define Menu_btnSel PORTA,2
  include "MenuDriver3Button.inc"
 
  ; The NMEA parser and serial driver
@@ -76,12 +76,12 @@ INIT_CLK_LOCK
 	bcf INTCON2,NOT_RBPU
 
 	; Inputs on PortB:0
-	movlw b'00100001'
-	movwf TRISB
+	;movlw b'00100001'
+	;movwf TRISB
 
 	; Inputs on PortA:4,3
-	movlw b'00011000'
-	movwf TRISA
+	;movlw b'00011000'
+	;movwf TRISA
 
 	call NMEA_init
 	call LCD_INIT
@@ -104,8 +104,6 @@ Return_Vector return
 
 ;*******************************************
 ;Main menu
- AddMenuItem "PIC Nav",Menu_Navigation_Init, Menu_Navigation
- db UnpackPLocation(Return_Vector)
  AddMenuItem "Navigate Mode",NMEA_Menu_Waypoint_init, NMEA_Menu_Waypoint
  db UnpackPLocation(Return_Vector)
  AddMenuItem "Fix:",NMEA_Menu_Fix_init, NMEA_Menu_Fix

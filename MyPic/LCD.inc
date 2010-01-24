@@ -110,7 +110,7 @@ LCD_INIT_DATA			;für 8 Bit Bus und serielle Kommunikation
 	dw	b'00011101'		;Bias set BS 1/4, 3-Zeilig
 	dw	b'01010010'		;Power control: Booster aus, Kontrast C5,C4 setzen
 	dw	b'01101001'		;Follower control: Spannungsfolger und Verstärkung
-	dw	b'01110001'		;Contrast set: Kontrast C3, C2, C1 setzen
+	dw	b'01110111'		;Contrast set: Kontrast C3, C2, C1 setzen
 	dw	b'00111000'		;Instruction Table 0
 	dw	b'00001100'		;Display ein, Coursor ein, cursor flash ein
 	dw	b'00000001'		;Display Löschen, return home
