@@ -56,55 +56,8 @@ div8scaled8_next
 
  cblock
 RES0,RES1,RES2,RES3
-DSOR_H,DSOR_L
 CNTR_SHIFTS
  endc
-
-DIV_3216U_ATFN               ;unsigned 32/16 bits values division
-;To call the routine:
-;dividend in RES3:0 (max val H'FFFE0001' =4.294.836.225) (32 bits).
-;divisor in DSOR_H:L (max value H'FFFF' =65.535) (16 bits).
-;User to ensure being within range or if a division by zero is going to happen.
-;The routine gives:
-;quotient in RES1:0 (16 bits)
-;reminder in RES3:2 (16 bits)
-;Result of RES3:RES0 / DSOR_1:DSOR_0 => RES1:RES0 (quotient)
-;Remainder in RES3:RES2
-    MOVLW 16                ;initialize the
-    MOVWF CNTR_SHIFTS       ;shiftings counter
-
-DIV_3216U_ATFN_LOOP
-    BCF STATUS,C            ;we ensure that b0
-    RLCF RES0,F           ;of RES0 is =0
-    RLCF RES1,F           ;after the shifting
-    RLCF RES2,F           ;to the left of the
-    RLCF RES3,F           ;whole dividend
-;We test C. If =1, shifting caused an o'flow! Substract DSOR_H:L from RES3:2
-    BC DIV_3216U_ATFN_SUBST_DSOR
-    MOVF DSOR_H,W           ;compare DSOR_H
-    SUBWF RES3,W          ;against RES3
-
-;We test Z. If =0, DSOR_H != RES3. Chech if  DSOR_H < RES3   
-    BNZ DIV_3216U_CHKIF_DSOR_LOW_RES
-    MOVF DSOR_L,W           ;DSOR_H = RES3; now compare
-    SUBWF RES2,W          ;value of DSOR_L against RES2
-
-DIV_3216U_CHKIF_DSOR_LOW_RES   
-;We test C. If =1, DSOR_  < RES - Substract DSOR_H:L from RES3:2
-    BNC DIV_3216U_ATFN_DECR_CNTR_SH
-
-DIV_3216U_ATFN_SUBST_DSOR   ;substract DSOR from MSBs of dividend
-    MOVF DSOR_L,W           ;RES2 = RES2 - DSOR_L
-    SUBWF RES2,F          ;Borrow not used (LSB)
-    MOVF DSOR_H,W           ;RES3 = RES3 - DSOR_H
-    SUBWFB RES3,F         ;Borrow used
-    BSF RES0,0            ;flag "divisor was substracted from dividend"
-
-DIV_3216U_ATFN_DECR_CNTR_SH
-    DECFSZ CNTR_SHIFTS,F
-    BRA DIV_3216U_ATFN_LOOP
-    RETURN                  ;job done!
-
 
  cblock
 DSOR_0,DSOR_1,DSOR_2,DSOR_3,QUOT_H,QUOT_L,PNTR_DSOR

@@ -45,11 +45,11 @@ touch_init
 	call touch_reset_pins
 
 	;Setup the ports, AN4-0
-	movlw b'00001010'
+	movlw b'00001001'
 	movwf ADCON1
 	
 	;Configure the aquisition & calc time
-	movlw b'10000001'
+	movlw b'10110010'
 	movwf ADCON2
 
 	;Switch it on
@@ -128,6 +128,9 @@ touch_calibrate_step_2
 	;Abort if contact was lost
 	btfss touched,0
 	bra touch_calibrate_step_2
+
+	;Wait for release
+	call touch_wait_for_release
 
 	;Save the max
 	movff x_pos,x_range
@@ -234,9 +237,6 @@ touch_get_reading_loop
 
 ;//////////////////////////////////////////////////
 touch_read_x
-	call touch_check_touch
-	bz touch_read_x_fail
-
 	;Set the X plates to charge -ve to +ve
 	bsf LCD_XP_LAT
 	bcf LCD_XN_LAT
@@ -279,9 +279,6 @@ touch_read_x_fail
 
 ;//////////////////////////////////////////////////
 touch_read_y
-	call touch_check_touch
-	bz touch_read_y_fail
-
 	;Set the Y plates to charge -ve to +ve
 	bsf LCD_YP_LAT
 	bcf LCD_YN_LAT
@@ -323,13 +320,14 @@ touch_read_y_fail
 
 ;//////////////////////////////////////////////////
 touch_read_state
-	call touch_read_y
-	btfss touched,0
-	bra	not_touched
+	call touch_check_touch
+	bz not_touched
 
+	call touch_read_y
 	call touch_read_x
-	btfss touched,0
-	bra	not_touched
+
+	call touch_check_touch
+	bz not_touched
 
 	return
 not_touched

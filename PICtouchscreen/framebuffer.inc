@@ -52,6 +52,9 @@ blank_framebuffer_loop
 ;Goes to the row specified in fb_row_ctr
 ;Assumes a Load_framebuffer has already occured
 fb_goto_row
+	;Make sure the range is correct
+	andlw b'00000111'
+	;Now go there
 	btfsc WREG,0
 	bsf FSR0L,7
 
@@ -110,6 +113,42 @@ transmit_framebuffer_col_loop
 	return
 
 	bra transmit_framebuffer_col_loop
+
+transmit_framebuffer_fast
+	call Load_framebuffer
+
+	;Increment the row number and keep in 0-7
+	incf fb_trans_row_ctr,W	
+	andlw b'00001111'
+	movwf fb_trans_row_ctr
+	andlw b'00000111'
+	call LCD_goto_row
+
+	;Modify the FSR to the right row
+	movf fb_trans_row_ctr,W
+	rcall fb_goto_row
+
+	;Goto the first column 
+	movlw .0
+	btfsc fb_trans_row_ctr,3
+	movlw .64
+	call LCD_goto_column
+
+	movlw .0
+	btfsc fb_trans_row_ctr,3
+	movlw .64
+	call fb_goto_col
+	;Reset the column counter
+	movlw fb_half_columns
+	movwf fb_trans_col_ctr
+transmit_framebuffer_fast_col_loop
+	movf POSTINC0,W
+	call LCD_data_send
+
+	dcfsnz fb_trans_col_ctr
+	return
+
+	bra transmit_framebuffer_fast_col_loop
 
 ;/////////////////////////////////////////
  cblock

@@ -1,3 +1,6 @@
+ PROCESSOR 18F4680
+ CONFIG  OSC=HSPLL,FCMEN=OFF,IESO=OFF,PWRT=OFF,BOREN=OFF,BORV=2,WDT=OFF,WDTPS=32768,MCLRE=ON,LPT1OSC=OFF,PBADEN=OFF,XINST=OFF,LVP=OFF,STVREN=ON
+ ;OSC=IRCIO67
  org 0x0000
 	goto INIT
 
@@ -8,6 +11,8 @@ w_temp
  include <p18f4680.inc>
  include "macros.inc"
  include "divide.inc"
+
+
 
  ;LCD display
  #define LCD_RS  LATB,2
@@ -29,17 +34,12 @@ sense_ctr
 Program CODE
 
 INIT
-	;Start by setting the Int. oscillator to 4Mhz
-	movlw b'01110010'
-	movwf OSCCON
+	;Setup the profiling pins
+;	clrf TRISD
 
-	;enable the PLL
-	bsf OSCTUNE,6
-	
-	;Ensure the oscillator is stable before proceeding
-INIT_STABLE_OSC
-	btfss OSCCON,IOFS
-	bra INIT_STABLE_OSC
+;BENCHPIN
+;	btg LATD,1
+;	bra BENCHPIN
 
 	;//////////////////////////////////////
 	;Setup the display
@@ -62,11 +62,13 @@ INIT_STABLE_OSC
 	call touch_init
 	call blank_framebuffer
 
-MAIN
-	call transmit_framebuffer_row
 
+	
+MAIN
+	call transmit_framebuffer_fast
 	call touch_read_state
 	call fast_normalise_coords
+
 
 	btfss touched,0
 	bra MAIN
