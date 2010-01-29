@@ -49,7 +49,7 @@ touch_init
 	movwf ADCON1
 	
 	;Configure the aquisition & calc time
-	movlw b'10110010'
+	movlw b'11110110'
 	movwf ADCON2
 
 	;Switch it on

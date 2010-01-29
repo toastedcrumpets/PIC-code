@@ -39,7 +39,8 @@ INIT
 	clrf DAC_BYTE_L
 
 MAIN
-	incf DAC_BYTE_L
+	incf DAC_BYTE_H
+skipinc
 	call TRANSMIT_DAC_WORD
 	bra MAIN
 
@@ -55,6 +56,7 @@ TRANSMIT_DAC_WORD
 	bcf DAC_CS
 
 	movf DAC_BYTE_H,W
+	andlw b'00001111'
 	iorlw b'01110000'
 	rcall TRANSMIT_DAC_BYTE
 

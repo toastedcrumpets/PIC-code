@@ -37,9 +37,9 @@ BitVar,ByteVar
  include "MenuDriver.inc"
 
  ; The menu navigation driver
- #define Menu_btnUp PORTB,5
- #define Menu_btnDwn PORTB,0
- #define Menu_btnSel PORTA,2
+ #define Menu_btnUp PORTB,6
+ #define Menu_btnDwn PORTB,7
+ #define Menu_btnSel PORTB,5
  include "MenuDriver3Button.inc"
 
  ; The NMEA parser and serial driver
@@ -75,20 +75,12 @@ INIT_CLK_LOCK
 	; Set a weak pull up on the PortB
 	bcf INTCON2,NOT_RBPU
 
-	; Inputs on PortB:0
-	;movlw b'00100001'
-	;movwf TRISB
-
-	; Inputs on PortA:4,3
-	;movlw b'00011000'
-	;movwf TRISA
+	; Inputs on PortB:5,6,7
+	movlw b'11100000'
+	movwf TRISB
 
 	call NMEA_init
 	call LCD_INIT
-
-
-
-
 
 	Load_Menu Main_Menu
 	call Menu_Open
