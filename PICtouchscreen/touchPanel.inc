@@ -348,16 +348,18 @@ fast_normalise_coords
 	movf x_min+1,W
 	subwfb x_pos+1,F
 	
-	btfsc STATUS,N
+	bnn $+.6
 	clrf x_pos
+	clrf x_pos+1
 
 	movf y_min,W
 	subwf y_pos,F
 	movf y_min+1,W
 	subwfb y_pos+1,F
 	
-	btfsc STATUS,N
+	bnn $+.6
 	clrf y_pos
+	clrf y_pos+1
 
 	;Now multiply by 255 and divide by the range
 	;X first

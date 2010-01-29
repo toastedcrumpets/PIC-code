@@ -11,8 +11,7 @@
 Load_framebuffer
 	movlw 0x02
 	movwf FSR0H
-	movlw 0x00
-	movwf FSR0L
+	clrf FSR0L
 	return
 
 ;/////////////////////////////////////////

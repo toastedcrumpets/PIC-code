@@ -27,6 +27,7 @@ w_temp
  include "touchPanel.inc"
  include "framebuffer.inc"
  include "textBlit.inc"
+ include "touchmenu.inc"
 
  cblock
 sense_ctr
