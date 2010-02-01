@@ -33,8 +33,6 @@ w_temp
 sense_ctr
  endc
 
-Program CODE
-
 INIT
 	;Setup the profiling pins
 ;	clrf TRISD
@@ -75,23 +73,23 @@ MAIN
 	btfss touched,0
 	bra MAIN
 
-	movff x_pos,pixel_x
-	bcf STATUS,C
-	rrcf pixel_x
+	call do_TouchMenu
+	
+	;movff x_pos,pixel_x
+	;bcf STATUS,C
+	;rrcf pixel_x
 
-	movff y_pos,pixel_y
-	bcf STATUS,C
-	rrcf pixel_y
-	bcf STATUS,C
-	rrcf pixel_y
+	;movff y_pos,pixel_y
+	;bcf STATUS,C
+	;rrcf pixel_y
+	;bcf STATUS,C
+	;rrcf pixel_y
 
-	call fb_set_pixel
+	;call fb_set_pixel
 
 	bra MAIN
 
- cblock
-bar_counter, bar_val, bar_piece
- endc
 
+ include "chartable.inc"
 
  end

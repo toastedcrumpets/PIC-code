@@ -1,6 +1,4 @@
-CHARACTER_TABLE CODE
 char_table
-	global char_table
 	db .1,LOW(char_data_0),HIGH(char_data_0),UPPER(char_data_0)
 	db .2,LOW(char_data_1),HIGH(char_data_1),UPPER(char_data_1)
 	db .3,LOW(char_data_2),HIGH(char_data_2),UPPER(char_data_2)
@@ -97,10 +95,16 @@ char_table
 	db .3,LOW(char_data_93),HIGH(char_data_93),UPPER(char_data_93)
 	db .5,LOW(char_data_94),HIGH(char_data_94),UPPER(char_data_94)
 	db .5,LOW(char_data_95),HIGH(char_data_95),UPPER(char_data_95)
-	db .5,LOW(char_data_96),HIGH(char_data_96),UPPER(char_data_96)
-	db .5,LOW(char_data_97),HIGH(char_data_97),UPPER(char_data_97)
-	db .5,LOW(char_data_98),HIGH(char_data_98),UPPER(char_data_98)
-	db .5,LOW(char_data_99),HIGH(char_data_99),UPPER(char_data_99)
+	db .4,LOW(char_data_96),HIGH(char_data_96),UPPER(char_data_96)
+	db .4,LOW(char_data_97),HIGH(char_data_97),UPPER(char_data_97)
+	db .4,LOW(char_data_98),HIGH(char_data_98),UPPER(char_data_98)
+	db .4,LOW(char_data_99),HIGH(char_data_99),UPPER(char_data_99)
+	db .4,LOW(char_data_100),HIGH(char_data_100),UPPER(char_data_100)
+	db .5,LOW(char_data_101),HIGH(char_data_101),UPPER(char_data_101)
+	db .4,LOW(char_data_102),HIGH(char_data_102),UPPER(char_data_102)
+	db .5,LOW(char_data_103),HIGH(char_data_103),UPPER(char_data_103)
+	db .10,LOW(char_data_104),HIGH(char_data_104),UPPER(char_data_104)
+	db .11,LOW(char_data_105),HIGH(char_data_105),UPPER(char_data_105)
 
 char_data_0
 	db b'00000000'
@@ -295,11 +299,22 @@ char_data_94
 char_data_95
 	db b'00011111',b'00000011',b'00000101',b'00001001',b'00010001'
 char_data_96
-	db b'00010001',b'00001001',b'00000101',b'00000011',b'00011111'
+	db b'00001001',b'00000101',b'00000011',b'00001111'
 char_data_97
-	db b'11111000',b'11000000',b'10100000',b'10010000',b'10001000'
+	db b'11110000',b'11000000',b'10100000',b'10010000'
 char_data_98
-	db b'10001000',b'10010000',b'10100000',b'11000000',b'11111000'
+	db b'10010000',b'10100000',b'11000000',b'11110000'
 char_data_99
-	db b'00011111',b'00000011',b'00000101',b'00001001',b'00010001'
- end
+	db b'00001111',b'00000011',b'00000101',b'00001001'
+char_data_100
+	db b'00010000',b'00111000',b'01010100',b'00010000'
+char_data_101
+	db b'00100000',b'01000000',b'11110000',b'01000000',b'00100000'
+char_data_102
+	db b'00010000',b'01010100',b'00111000',b'00010000'
+char_data_103
+	db b'00010000',b'00001000',b'00111100',b'00001000',b'00010000'
+char_data_104
+	db b'00000010',b'01111110',b'01000000',b'01111110',b'00000010',b'00011110',b'00010000',b'01010100',b'00111000',b'00010000'
+char_data_105
+	db b'00000000',b'00001110',b'00010101',b'00011001',b'00100001',b'01000010',b'10000100',b'00000011',b'00000001',b'00000010',b'00000100'

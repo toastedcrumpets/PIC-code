@@ -1,7 +1,5 @@
 ;Commands for text blitting
 
- extern char_table
-
 ;////////////////////////////////////////////////////////////////////
 ;Expects the char number in W
 ;And the framebuffer in the right location
