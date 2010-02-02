@@ -4,11 +4,11 @@
 
 ;//////////////////////////////////
 Insert_Touch_value macro x, y, function
-	local Val = x+y*16
+	local Val = (x+(y*.16)) * .3
 	call Load_TouchMenu
-	movlw #v(Val & H'FF')
+	movlw (Val & 0x0FF)
 	addwf FSR1L,F
-	movlw #v(Val >>D'8' & H'FF')
+	movlw ((Val & 0x0FF00) > 8)
 	addwfc FSR1H,F
 	movlw UPPER(function)
 	movwf POSTINC1

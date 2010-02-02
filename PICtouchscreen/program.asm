@@ -64,7 +64,7 @@ INIT
 	call clear_TouchMenu
 
 	Insert_Touch_value 0,0,Draw_Mode
-	Insert_Touch_value 2,0,Draw_Mode
+	Insert_Touch_value 2,6,Draw_Mode
 
 MAIN
 	call transmit_framebuffer_fast

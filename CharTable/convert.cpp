@@ -1,6 +1,5 @@
 #include <iostream>
-#include "Font8.h"
-#include <boost/foreach.hpp>
+#include "Font8MB.h"
 
 void printByte(const BYTE bitfield)
 {
