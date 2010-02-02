@@ -1,6 +1,6 @@
 ;Framebuffer Driver for the Graphical LCD
 
- __badram 0x200-0x4ff
+ __badram 0x0200-0x05ff
 
 #define fb_columns .128
 #define fb_half_columns .64

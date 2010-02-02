@@ -61,9 +61,11 @@ INIT
 	;Setup the touch panel
 	call touch_init
 	call blank_framebuffer
+	call clear_TouchMenu
 
+	Insert_Touch_value 0,0,Draw_Mode
+	Insert_Touch_value 2,0,Draw_Mode
 
-	
 MAIN
 	call transmit_framebuffer_fast
 	call touch_read_state
@@ -75,21 +77,11 @@ MAIN
 
 	call do_TouchMenu
 	
-	;movff x_pos,pixel_x
-	;bcf STATUS,C
-	;rrcf pixel_x
-
-	;movff y_pos,pixel_y
-	;bcf STATUS,C
-	;rrcf pixel_y
-	;bcf STATUS,C
-	;rrcf pixel_y
-
-	;call fb_set_pixel
-
 	bra MAIN
 
 
  include "chartable.inc"
 
+ret_vec
+	return
  end

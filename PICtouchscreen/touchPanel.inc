@@ -112,7 +112,7 @@ touch_calibrate_step_1
 	call Load_framebuffer
 	movlw .7
 	call fb_goto_row
-	movlw .123
+	movlw .124
 	call fb_goto_col
 	movlw .98
 	call blit_char
