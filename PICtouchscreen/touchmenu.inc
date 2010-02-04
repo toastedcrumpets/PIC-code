@@ -2,28 +2,26 @@
 
  __badram 0x0600-0x07FF
 
+
+;//////////////////////////////////
+;Loads the table ptr address into the touch overlay in a row N times
+ cblock
+Insert_touch_ctr
+ endc
+
+Insert_Touch_value_N macro function, N
+	movlw N
+	movwf Insert_touch_ctr
+
+	Insert_Touch_value function
+	decfsz Insert_touch_ctr
+	bra $-.14
+	endm
+
 ;//////////////////////////////////
 ;Loads the table ptr address into the touch overlay
-;x pos (0-15), y_pos (0-7), function is the label of the function
-Insert_Touch_value macro x_pos,y_pos,function
-	;Load FSR1
-	call Load_TouchMenu
-
-	;Calculate the overlay offset
-	movf y_pos,W
-	mullw .16
-	;Value is 0-7 so only low byte needed
-	movf PRODL,W
-	addwf x_pos,W
-	mullw .3
-
-	;Goto the overlay location
-	movf PRODL,W
-	addwf FSR1L,F
-	movf PRODH,W
-	addwfc FSR1H,F
-
-	;Write the function
+;function is the label of the function
+Insert_Touch_value macro function
 	movlw UPPER(function)
 	movwf POSTINC1
 	movlw HIGH(function)
@@ -31,6 +29,29 @@ Insert_Touch_value macro x_pos,y_pos,function
 	movlw LOW(function)
 	movwf POSTINC1
 	endm
+;////////////////////////////////
+;Goes to a spot in the touch overlay
+;x pos (0-15), y_pos (0-7)
+ cblock
+Insert_Touch_var_x,Insert_Touch_var_y
+ endc
+Touch_Goto_Entry
+	call Load_TouchMenu
+
+	;Calculate the overlay offset
+	movf Insert_Touch_var_y,W
+	mullw .16
+	;Value is 0-7 so only low byte needed
+	movf PRODL,W
+	addwf Insert_Touch_var_x,W
+	mullw .3
+
+	;Goto the overlay location
+	movf PRODL,W
+	addwf FSR1L,F
+	movf PRODH,W
+	addwfc FSR1H,F
+	return
 
 ;///////////////////////////
 ;Just preps FSR1 for the touch table
@@ -117,6 +138,7 @@ do_TouchMenu
 
 	return
 
+
 ;///////////////////////////////////////////////////////////
 ;Menu loop ticker, handles touches and updates of the screen
 Menu_ticker
@@ -129,3 +151,4 @@ Menu_ticker
 
 	call do_TouchMenu
 	return
+

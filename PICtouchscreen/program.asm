@@ -61,12 +61,12 @@ INIT
 	;Setup the touch panel
 	call touch_init
 	;Entry vector for the menu
-	call Drawing_Mode_Init
+	call Main_Mode_Init
 MAIN
 	call Menu_ticker
 	bra MAIN
 
  include "DrawMode.inc"
-
+ include "MainMenuMode.inc"
  include "chartable.inc"
  end
