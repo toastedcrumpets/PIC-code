@@ -60,28 +60,13 @@ INIT
 	;//////////////////////////////////////
 	;Setup the touch panel
 	call touch_init
-	call blank_framebuffer
-	call clear_TouchMenu
-
-	Insert_Touch_value 0,0,Draw_Mode
-	Insert_Touch_value 2,6,Draw_Mode
-
+	;Entry vector for the menu
+	call Drawing_Mode_Init
 MAIN
-	call transmit_framebuffer_fast
-	call touch_read_state
-	call fast_normalise_coords
-
-
-	btfss touched,0
+	call Menu_ticker
 	bra MAIN
 
-	call do_TouchMenu
-	
-	bra MAIN
-
+ include "DrawMode.inc"
 
  include "chartable.inc"
-
-ret_vec
-	return
  end

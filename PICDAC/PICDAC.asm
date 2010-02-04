@@ -39,7 +39,8 @@ INIT
 	clrf DAC_BYTE_L
 
 MAIN
-	incf DAC_BYTE_H
+	infsnz DAC_BYTE_L,F
+	incf DAC_BYTE_H,F
 skipinc
 	call TRANSMIT_DAC_WORD
 	bra MAIN
@@ -70,20 +71,18 @@ TRANSMIT_DAC_WORD
 TRANSMIT_DAC_BYTE
 	;Make the carry bit a 1
 	bsf STATUS,C
-
+	rlcf WREG
 DAC_loop
 	bsf	DAC_SDI
-	btfss	WREG,7
+	btfss STATUS,C
 	bcf	DAC_SDI
 
 	bsf	DAC_CLK
  	bcf	DAC_CLK
-	
-	rlcf WREG,f
-	bcf STATUS,C
-	;When WREG is zero, all bits are transfered
-	bnz	DAC_loop
 
+	bcf STATUS,C
+	rlcf WREG
+	bnz	DAC_loop
 	return
 
 end
