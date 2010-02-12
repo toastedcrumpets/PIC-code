@@ -124,3 +124,28 @@ blit_box_print_table_string_ret
 	movlw b'01111110'
 	movwf POSTINC0
 	return
+
+;************************************************************************
+;Translate W to a 2 word hex code, and write that hex code to the screen
+W_2HEX_to_LCD
+	movwf	w_temp
+	swapf	w_temp,W		;First Number
+	call	W_1HEX_to_LCD
+	movf	w_temp,W		;second_number
+	call	W_1HEX_to_LCD
+	return
+
+;************************************************************************
+;Translate the lower nibble of W as a hex code and write it to the screen
+W_1HEX_to_LCD				
+	andlw	0x0f			;Mask the lower nibble
+	addlw	-.10			;Test if A-F
+
+	btfsc	STATUS,C	;Skip next if it is a number
+	addlw	.7			;Add the ascii offset between numbers and characters
+
+	addlw	.26			;Get it to at least the numbers (16) plus the previous subtract (9)
+	call	blit_char
+	movlw b'00000000'
+	movwf POSTINC0
+	return

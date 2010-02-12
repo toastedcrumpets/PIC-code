@@ -21,15 +21,7 @@ counter, LCD_temp
 
 ;****************************************************************
 ; Helper Macros
-;Sets up the table ptr for a fixed address
-LoadTable macro _table
-	movlw LOW (_table) 
-	movwf TBLPTRL	
-	movlw HIGH (_table)	
-	movwf TBLPTRH 
-	movlw UPPER (_table)
-	movwf TBLPTRU 
-	endm
+
 
 ; Print on the LCD the (db "String to print",0x00) pointed to by _table
 LCDPrintString macro _table
@@ -355,27 +347,6 @@ LCD_end
 	bcf	LCD_SI		;
 ;	bcf	LCD_SCL		;
 
-	return
-
-;************************************************************************
-;Translate W to a 2 word hex code, and write that hex code to the screen
-W_2HEX_to_LCD
-	movwf	w_temp
-	swapf	w_temp,W		;First Number
-	call	W_1HEX_to_LCD
-	movf	w_temp,W		;second_number
-	call	W_1HEX_to_LCD
-	return
-
-;************************************************************************
-;Translate the lower nibble of W as a hex code and write it to the screen
-W_1HEX_to_LCD				;Interpretiert das untere Nibble als eine HEX stelle->LCD 
-	andlw	0x0f
-	sublw	0x09
-	btfss	STATUS,C		;carry gelöscht, wen Buchstabe A-F
-	addlw	0xF9			;=-7
-	sublw	0x39			;=0x30+d'9'
-	call	LCD_data_send
 	return
 
 ;************************************************************************

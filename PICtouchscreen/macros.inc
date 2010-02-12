@@ -5,6 +5,16 @@
 L_tmp,H_tmp,U_tmp
  endc
 
+;Sets up the table ptr for a fixed address
+LoadTable macro _table
+	movlw LOW (_table) 
+	movwf TBLPTRL	
+	movlw HIGH (_table)	
+	movwf TBLPTRH 
+	movlw UPPER (_table)
+	movwf TBLPTRU 
+	endm
+
 LoadTableFromTABLAT macro
 	TBLRD*+
 	movff TABLAT,L_tmp
@@ -93,3 +103,41 @@ dec2bin16
     addwf NUMHI,F
 
     return            ; Q.E.D.
+
+;/////////////////////////////////////////////////////////
+;EEPROM accessing
+
+EEPROM_read macro addr, output
+	movlw HIGH(addr)
+	movwf EEADRH
+	movlw LOW(addr)
+	movwf EEADR
+	bcf EECON1, EEPGD ;Point to data memory
+	bcf EECON1, CFGS; Access EEPROM
+	bsf EECON1, RD ;Start read
+	movff EEDATA, output
+	endm
+
+EEPROM_write macro addr, input
+	btfsc EECON1,WRERR
+	bra $-.2
+	bcf PIR2,EEIF
+
+	movlw HIGH(addr)
+	movwf EEADRH
+	movlw LOW(addr)
+	movwf EEADR
+	movf input,W
+	movwf EEDATA
+	bcf EECON1, EEPGD
+	bcf EECON1, CFGS
+	bsf EECON1, WREN
+
+	movlw 55h
+	movwf EECON2
+	movlw 0AAh
+	movwf EECON2
+	bsf EECON1, WR
+
+	bcf EECON1,WREN
+	endm

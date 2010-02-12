@@ -75,7 +75,7 @@ char_table
 	db .1,LOW(char_data_73),HIGH(char_data_73),UPPER(char_data_73)
 	db .2,LOW(char_data_74),HIGH(char_data_74),UPPER(char_data_74)
 	db .3,LOW(char_data_75),HIGH(char_data_75),UPPER(char_data_75)
-	db .2,LOW(char_data_76),HIGH(char_data_76),UPPER(char_data_76)
+	db .1,LOW(char_data_76),HIGH(char_data_76),UPPER(char_data_76)
 	db .5,LOW(char_data_77),HIGH(char_data_77),UPPER(char_data_77)
 	db .3,LOW(char_data_78),HIGH(char_data_78),UPPER(char_data_78)
 	db .3,LOW(char_data_79),HIGH(char_data_79),UPPER(char_data_79)
@@ -105,7 +105,7 @@ char_table
 	db .5,LOW(char_data_103),HIGH(char_data_103),UPPER(char_data_103)
 	db .7,LOW(char_data_104),HIGH(char_data_104),UPPER(char_data_104)
 	db .5,LOW(char_data_105),HIGH(char_data_105),UPPER(char_data_105)
-	db .7,LOW(char_data_106),HIGH(char_data_106),UPPER(char_data_106)
+	db .5,LOW(char_data_106),HIGH(char_data_106),UPPER(char_data_106)
 	db .9,LOW(char_data_107),HIGH(char_data_107),UPPER(char_data_107)
 	db .8,LOW(char_data_108),HIGH(char_data_108),UPPER(char_data_108)
 	db .9,LOW(char_data_109),HIGH(char_data_109),UPPER(char_data_109)
@@ -263,7 +263,7 @@ char_data_74
 char_data_75
 	db b'00111100',b'00001000',b'00010100'
 char_data_76
-	db b'00000000',b'00111100'
+	db b'00111100'
 char_data_77
 	db b'00011100',b'00100000',b'00011100',b'00100000',b'00011100'
 char_data_78
@@ -323,7 +323,7 @@ char_data_104
 char_data_105
 	db b'00001000',b'00100100',b'00000100',b'00100100',b'00001000'
 char_data_106
-	db b'00000100',b'00111100',b'00100000',b'00111100',b'00000100',b'00111100',b'00100000'
+	db b'00010000',b'00010000',b'01101100',b'00010000',b'00010000'
 char_data_107
 	db b'00000010',b'00000100',b'00001000',b'00010000',b'00111110',b'00000100',b'00001000',b'00010000',b'00111110'
 char_data_108

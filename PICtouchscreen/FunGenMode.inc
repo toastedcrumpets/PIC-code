@@ -1,28 +1,26 @@
-;Drawing mode for the touch screen
+;FuncGen mode for the touch screen
 
-Drawing_Mode_clr_str db "clear",0x00
+FuncGen_Mode_send_str db "send",0x00
+
+FuncGen_Mode_setup
+
+	return
 
 ;//////////////////////////////////////
-;Sets up the touch panel for drawing mode
-Drawing_Mode_Init
+;Sets up the touch panel for FuncGen mode
+FuncGen_Mode_Init
 	;Prepare the display
-	call Drawing_Mode_redraw
+	call FuncGen_Mode_redraw
 
-	;Fill the screen with touch handlers for drawing
-	movlw LOW(Drawing_Handler)
-	movwf fill_touch_menu_vec_L
-	movlw HIGH(Drawing_Handler)
-	movwf fill_touch_menu_vec_H
-	movlw UPPER(Drawing_Handler)
-	movwf fill_touch_menu_vec_U
-	call fill_TouchMenu
-	
+	;Fill the screen with touch handlers for FuncGen
+	call clear_TouchMenu
+
 	movlw .7
 	movwf Insert_Touch_var_y
 	movlw .13
 	movwf Insert_Touch_var_x
 	call Touch_Goto_Entry
-	Insert_Touch_value_N Drawing_Mode_redraw,.3
+	Insert_Touch_value_N FuncGen_Handler,.3
 
 	movlw .6
 	movwf Insert_Touch_var_y
@@ -37,14 +35,14 @@ Drawing_Mode_Init
 
 ;///////////////////////////////////////
 ;Draws the menu buttons
-Drawing_Mode_redraw
+FuncGen_Mode_redraw
 	call blank_framebuffer
 	call Load_framebuffer
 	movlw .7
 	call fb_goto_row
-	movlw .105
+	movlw .107
 	call fb_goto_col
-	LoadTable(Drawing_Mode_clr_str)
+	LoadTable(FuncGen_Mode_send_str)
 	call blit_box_print_table_string
 
 	call Load_framebuffer
@@ -61,16 +59,8 @@ Drawing_Mode_redraw
 
 ;/////////////
 ;This handler draws a pixel
-Drawing_Handler
-	movff x_pos,pixel_x
-	bcf STATUS,C
-	rrcf pixel_x
+FuncGen_Handler
 
-	movff y_pos,pixel_y
-	bcf STATUS,C
-	rrcf pixel_y
-	bcf STATUS,C
-	rrcf pixel_y
-
-	call fb_set_pixel
+	;Make sure this isn't toggled multiple times
+	call touch_wait_for_release
 	return

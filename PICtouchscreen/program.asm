@@ -29,44 +29,54 @@ w_temp
  include "textBlit.inc"
  include "touchmenu.inc"
 
+ ;SD card
+ #define SD_CS LATD,2
+ #define SD_DI LATD,3
+ #define SD_CLK LATD,4
+ #define SD_DO PORTD,5
+ include "SDCard.inc"
+
  cblock
 sense_ctr
  endc
 
 INIT
-	;Setup the profiling pins
-;	clrf TRISD
-
-;BENCHPIN
-;	btg LATD,1
-;	bra BENCHPIN
-
+	;//////////////////////////////////////
+	;Establish the lines for the SD card
+	clrf TRISD
+	;Data input line
+	bsf TRISD,5
+	call SD_init
 	;//////////////////////////////////////
 	;Setup the display
-	;Set portB to output
+	;Set portB to output for the LCD
 	clrf TRISB
-
 	;Pull down B5 to reset the display
 	clrf LATB
 	call delay_1ms
-
 	;Enable the display
 	bsf LATB,5
 	call delay_1ms
 	call LCD_INIT
-
 	call LCD_clear
+
+	;////////////////////////////
+	;Setup the function generator communication
+	call FuncGen_Mode_setup
 
 	;//////////////////////////////////////
 	;Setup the touch panel
 	call touch_init
 	;Entry vector for the menu
-	call Main_Mode_Init
+	;call Main_Mode_Init
+	call SD_Mode_Init
 MAIN
 	call Menu_ticker
 	bra MAIN
 
  include "DrawMode.inc"
+ include "FunGenMode.inc"
  include "MainMenuMode.inc"
+ include "SDMode.inc"
  include "chartable.inc"
  end

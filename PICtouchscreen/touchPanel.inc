@@ -37,9 +37,6 @@ touch_wait_for_release
 	return
 
 ;////////////////////////////////////////////
-touch_calibrate_string_1 db "CALIBRATION",0x00
-touch_calibrate_string_2 db "Please press the arrows",0x00
-
 touch_init
 	clrf touched
 	call touch_reset_pins
@@ -55,6 +52,24 @@ touch_init
 	;Switch it on
 	bsf ADCON0,GO_DONE
 
+	EEPROM_read 000h,x_min+1
+	btfsc x_min+1,7 ;Bit 7 is clear if the system is calibrated
+	goto touch_calibrate
+
+	EEPROM_read 001h,x_min 
+	EEPROM_read 002h,y_min+1 
+	EEPROM_read 003h,y_min 
+	EEPROM_read 004h,x_range+1 
+	EEPROM_read 005h,x_range 
+	EEPROM_read 006h,y_range+1 
+	EEPROM_read 007h,y_range 
+	return
+
+;////////////////////////////////////////////
+touch_calibrate_string_1 db "CALIBRATION",0x00
+touch_calibrate_string_2 db "Please press the arrows",0x00
+
+touch_calibrate
 	;//////////////////////////////
 	;Calibrate the screen
 	;Blank it first
@@ -156,6 +171,15 @@ touch_calibrate_step_2
 	btfss STATUS,C
 	bra touch_init
 
+	;Save the calibration in the EEPROM
+	EEPROM_write 000h,x_min+1 
+	EEPROM_write 001h,x_min 
+	EEPROM_write 002h,y_min+1 
+	EEPROM_write 003h,y_min 
+	EEPROM_write 004h,x_range+1 
+	EEPROM_write 005h,x_range 
+	EEPROM_write 006h,y_range+1 
+	EEPROM_write 007h,y_range 
 	return
 
 ;//////////////////////////////////////////////////
