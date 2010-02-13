@@ -39,6 +39,7 @@ file_011=.
 file_012=.
 file_013=.
 file_014=.
+file_015=.
 [GENERATED_FILES]
 file_000=no
 file_001=no
@@ -55,6 +56,7 @@ file_011=no
 file_012=no
 file_013=no
 file_014=no
+file_015=no
 [OTHER_FILES]
 file_000=no
 file_001=no
@@ -71,6 +73,7 @@ file_011=no
 file_012=no
 file_013=no
 file_014=no
+file_015=no
 [FILE_INFO]
 file_000=program.asm
 file_001=divide.inc
@@ -87,6 +90,7 @@ file_011=MainMenuMode.inc
 file_012=FunGenMode.inc
 file_013=SDCard.inc
 file_014=SDMode.inc
+file_015=FAT32.inc
 [SUITE_INFO]
 suite_guid={6B3DAA78-59C1-46DD-B6AA-DBDAE4E06484}
 suite_state=generate-absolute-code

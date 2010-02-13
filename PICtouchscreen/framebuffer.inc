@@ -140,14 +140,14 @@ transmit_framebuffer_fast
 	;Reset the column counter
 	movlw fb_half_columns
 	movwf fb_trans_col_ctr
-transmit_framebuffer_fast_col_loop
+transmit_framebuffer_fast_loop
 	movf POSTINC0,W
 	call LCD_data_send
 
 	dcfsnz fb_trans_col_ctr
 	return
 
-	bra transmit_framebuffer_fast_col_loop
+	bra transmit_framebuffer_fast_loop
 
 ;/////////////////////////////////////////
  cblock

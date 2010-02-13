@@ -188,16 +188,16 @@ SD_read
 	call SD_tranceive
 
 	;Transmit the address
-	movf SD_addr+2,W
+	movf SD_addr,W
 	call SD_tranceive
 	movf SD_addr+1,W
 	call SD_tranceive
-	movf SD_addr,W
+	movf SD_addr+2,W
 	call SD_tranceive
 	movlw 0x00
+	call SD_tranceive
 
 	;The fake CRC
-	call SD_tranceive
 	movlw 0xFF
 	call SD_tranceive
 
@@ -259,11 +259,11 @@ SD_write
 	call SD_tranceive
 
 	;Transmit the address
-	movf SD_addr+2,W
+	movf SD_addr,W
 	call SD_tranceive
 	movf SD_addr+1,W
 	call SD_tranceive
-	movf SD_addr,W
+	movf SD_addr+2,W
 	call SD_tranceive
 	movlw 0x00
 	call SD_tranceive

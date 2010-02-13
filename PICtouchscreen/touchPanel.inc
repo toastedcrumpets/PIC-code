@@ -52,6 +52,12 @@ touch_init
 	;Switch it on
 	bsf ADCON0,GO_DONE
 
+	;Check if the screen is touched while booting, force calibration
+	call touch_read_state
+	;Abort if contact was lost
+	btfsc touched,0
+	goto touch_calibrate
+
 	EEPROM_read 000h,x_min+1
 	btfsc x_min+1,7 ;Bit 7 is clear if the system is calibrated
 	goto touch_calibrate

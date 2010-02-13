@@ -68,8 +68,7 @@ INIT
 	;Setup the touch panel
 	call touch_init
 	;Entry vector for the menu
-	;call Main_Mode_Init
-	call SD_Mode_Init
+	call Main_Mode_Init
 MAIN
 	call Menu_ticker
 	bra MAIN
@@ -78,5 +77,6 @@ MAIN
  include "FunGenMode.inc"
  include "MainMenuMode.inc"
  include "SDMode.inc"
+ include "FAT32.inc"
  include "chartable.inc"
  end
