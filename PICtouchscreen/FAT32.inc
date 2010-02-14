@@ -37,6 +37,16 @@ x2_24bit macro in,out
 	movwf out+2
 	endm
 
+div2_24bit macro in,out
+	bcf STATUS,C
+	rrcf in+2,W
+	movwf out+2
+	rrcf in+1,W
+	movwf out+1
+	rrcf in+0,W
+	movwf out+0
+	endm
+
 add_24bit macro a,b
 	movf b+0,W
 	addwf a+0,F
@@ -46,18 +56,26 @@ add_24bit macro a,b
 	addwfc a+2,F
 	endm
 
+sub_24bit macro a,b
+	movf b+0,W
+	subwf a+0,F
+	movf b+1,W
+	subwfb a+1,F
+	movf b+2,W
+	subwfb a+2,F
+	endm
+
 mul_24bit_by2 macro a
 	bcf STATUS,C
 	endm
 
 ;////////////////////////////////////////////////////////
-;This macro is used when you load a cluster address and want a
+;This function is used when you load a cluster address and want a
 ;data address
  cblock
 convert_cluster_tmp
  endc
-
-convert_cluster_in_addr
+convert_cluster_in_addr_no_offset
 	;first subtract 2, as all cluster addresses start at 2
 	movlw .2
 	subwf SD_addr+0,F
@@ -78,11 +96,45 @@ convert_cluster_in_addr_loop
 	bra convert_cluster_in_addr_loop
 
 convert_cluster_in_addr_skip
+	return
+
+convert_cluster_in_addr
+	call convert_cluster_in_addr_no_offset
 	;Finally we add the cluster_begin_lba
 	add_24bit SD_addr, cluster_begin_lba
 	;Multiply by two again for sectors to bytes
 	x2_24bit SD_addr,SD_addr
 	;We're done
+	return
+
+;//////////////////////////////////////////////////////////////
+;this converts the byte address back to a cluster number
+convert_byte_in_addr
+	;Divide by two, to get the sector address
+	div2_24bit SD_addr,SD_addr
+
+	;subtract the cluster offset
+	sub_24bit SD_addr, cluster_begin_lba
+
+	;Now we divide by the sectors per cluster
+	movf sectors_per_cluster_power,W
+	bz convert_cluster_in_addr_skip
+
+	movwf convert_cluster_tmp	
+convert_byte_in_addr_loop
+	div2_24bit SD_addr,SD_addr
+
+	decfsz convert_cluster_tmp
+	bra convert_byte_in_addr_loop
+
+convert_byte_in_addr_skip
+	;finally add 2, as all cluster addresses start at 2
+	movlw .2
+	addwf SD_addr+0,F
+	movlw .0
+	addwfc SD_addr+1,F
+	movlw .0
+	addwfc SD_addr+2,F
 	return
 
 ;////////////////////////////////////////////////////////
@@ -111,11 +163,11 @@ FAT_init
 	movwf entryname+.2
 	movlw "T"
 	movwf entryname+.3
-	movlw "8"
+	movlw "1"
 	movwf entryname+.4
-	movlw " "
+	movlw "0"
 	movwf entryname+.5
-	movlw " "
+	movlw "1"
 	movwf entryname+.6
 	movlw " "
 	movwf entryname+.7
@@ -359,9 +411,7 @@ FAT_load_root
 	movff root_dir_first_cluster+2,SD_addr+2
 	movff root_dir_first_cluster+1,SD_addr+1
 	movff root_dir_first_cluster+0,SD_addr+0
-	call convert_cluster_in_addr
 	rcall FAT_save_first_cluster
-
 	;The error message is still in W
 	return
 
@@ -380,8 +430,9 @@ FAT_open_entry
 
 FAT_open_entry_cluster_start
 	movff sectors_per_cluster,sector_count
-	
-FAT_open_entry_cluster_loop
+	call convert_cluster_in_addr
+
+FAT_open_entry_sector_loop
 	call SD_read
 	xorlw .0
 	btfss STATUS,Z
@@ -393,11 +444,11 @@ FAT_open_entry_cluster_loop
 		movlw 0x0B
 		movwf FSR2L
 
-	FAT_open_entry_sector_loop
+	FAT_open_entry_entry_loop
 		;This checks if the VolumeID bit is set, it ignores it if so
 		movf INDF2,W
 		andlw b'00001000' 
-		bnz FAT_open_entry_sector_next
+		bnz FAT_open_entry_next_entry
 
 		;Now we need to compare the names
 		movlw 0x0B
@@ -424,7 +475,7 @@ FAT_open_entry_cluster_loop
 		
 		;All that above should result in FSR2 being back at the attrib byte
 		;Skip if the comparison failed
-		bc FAT_open_entry_sector_next
+		bc FAT_open_entry_next_entry
 		
 		;Success, found the file
 		;Check the attributes
@@ -454,7 +505,7 @@ FAT_open_entry_cluster_loop
 		call FAT_save_first_cluster
 		retlw .0
 
-	FAT_open_entry_sector_next
+	FAT_open_entry_next_entry
 		movlw .32
 		addwf FSR2L,F
 		movlw .0
@@ -463,9 +514,102 @@ FAT_open_entry_cluster_loop
 		;Check we've not exited the sector
 		movlw 0x0A
 		xorwf FSR2H,W
-		bz FAT_not_found_file
-	
+		bnz FAT_open_entry_entry_loop
+
+	;We've exited the sector, next sector please
+	FAT_open_entry_next_sector
+		;Increase the sector address
+		movlw .2 ;A sector is 2 in byte adresses	
+		addwf SD_addr+0,F
+		movlw .0
+		addwfc SD_addr+1,F
+		movlw .0
+		addwfc SD_addr+2,F
+
+		;Check its not past the last sector and loop
+		decfsz sector_count
 		bra FAT_open_entry_sector_loop
 
-	FAT_not_found_file
+	;Now use the fat to get the next cluster, first, rewind to the start of the cluster
+	;This multiplies by two to convert lba to byte
+	bcf STATUS,C
+	rlcf sectors_per_cluster,W
+
+	subwf SD_addr+0,F
+	movlw .0
+	subwfb SD_addr+1,F
+	movlw .0
+	subwfb SD_addr+2,F
+
+	call FAT_follow_FAT
+
+	;Now we need to check it's a valid lookup
+	call FAT_addr_check
+	xorlw .0
+	bz FAT_open_entry_cluster_start
+
+	;Failed to lookup the file
 	retlw .1
+;/////////////////////////////////////////////////////////
+;Uses the FAT table to look up the next cluster
+ cblock
+FAT_sector_offset
+ endc 
+FAT_follow_FAT
+	;Turn the byte address into a sector address
+	call convert_byte_in_addr
+	
+	;The first 5 bits are the address of the FAT entry in the FAT sector
+	;The other 19bits are the half sector offsets to the start of the FAT table.
+	movf SD_addr+0,W
+	andlw b'00011111'
+	movwf FAT_sector_offset
+
+	;Now divide by 5, to get the sector of the FAT required
+	;TODO: fix this expensive piece of code, try using swaps
+	div2_24bit SD_addr,SD_addr
+	div2_24bit SD_addr,SD_addr
+	div2_24bit SD_addr,SD_addr
+	div2_24bit SD_addr,SD_addr
+	div2_24bit SD_addr,SD_addr
+
+	;Finally we add the fat_begin_lba
+	add_24bit SD_addr, fat_begin_lba
+	;Multiply by two again for sectors to bytes
+	x2_24bit SD_addr, SD_addr
+
+	;Load the fat table
+	call SD_read
+	
+	;Open the buffer
+	movf FAT_sector_offset,W
+	mullw .4
+	movff PRODL,FSR2L
+	movlw 0x08
+	addwf PRODH,W
+	movwf FSR2H
+	
+	movff POSTINC2,SD_addr+0
+	movff POSTINC2,SD_addr+1
+	movff POSTINC2,SD_addr+2
+	;Now exit and leave it to the caller to decide if a load is needed
+	return
+
+;///////////////////////////////////////////////////////////////
+;Validates the address (checks its not 0xFFFFFF)
+FAT_addr_check
+	movlw 0xFF
+	xorwf SD_addr+0,W
+	bnz FAT_addr_check_fine
+
+	movlw 0xFF
+	xorwf SD_addr+1,W
+	bnz FAT_addr_check_fine
+
+	movlw 0xFF
+	xorwf SD_addr+2,W
+	bnz FAT_addr_check_fine
+
+	retlw .1
+FAT_addr_check_fine
+	retlw .0
