@@ -188,11 +188,11 @@ SD_read
 	call SD_tranceive
 
 	;Transmit the address
-	movf SD_addr,W
+	movf SD_addr+2,W
 	call SD_tranceive
 	movf SD_addr+1,W
 	call SD_tranceive
-	movf SD_addr+2,W
+	movf SD_addr+0,W
 	call SD_tranceive
 	movlw 0x00
 	call SD_tranceive
@@ -227,8 +227,10 @@ SD_read_copy
 	clrf FSR2L
 
 SD_read_copy_loop
-	;This is purely for my scope
+	;This is purely for my oscilliscope, 
+	;keep the line high so I can see its not transmitting
 	movlw 0xFF
+
 	rcall SD_tranceive
 	movwf POSTINC2
 	movf FSR2H,W
@@ -259,11 +261,11 @@ SD_write
 	call SD_tranceive
 
 	;Transmit the address
-	movf SD_addr,W
+	movf SD_addr+2,W
 	call SD_tranceive
 	movf SD_addr+1,W
 	call SD_tranceive
-	movf SD_addr+2,W
+	movf SD_addr+0,W
 	call SD_tranceive
 	movlw 0x00
 	call SD_tranceive
