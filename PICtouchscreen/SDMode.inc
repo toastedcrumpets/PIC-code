@@ -73,11 +73,11 @@ SD_MODE_FAT
 	movwf entryname+.2
 	movlw "T"
 	movwf entryname+.3
-	movlw "1"
+	movlw "9"
 	movwf entryname+.4
-	movlw "2"
+	movlw "0"
 	movwf entryname+.5
-	movlw "6"
+	movlw " "
 	movwf entryname+.6
 	movlw " "
 	movwf entryname+.7
@@ -88,15 +88,16 @@ SD_MODE_FAT
 	movlw "T"
 	movwf entryname+.10
 
+	;call FAT_load_root
+	;call FAT_open_entry
+	;xorlw .0
+	;bnz SD_MODE_FAT_fail
+
+	;call SD_read
+
 	call FAT_load_root
-	call FAT_open_entry
-	xorlw .0
-	bnz SD_MODE_FAT_fail
-
-	call SD_read
-	xorlw .0
-	xorlw .0
-
+	call FAT_delete_entry
+	
 SD_MODE_FAT_fail
 	call touch_wait_for_release	
 	return
