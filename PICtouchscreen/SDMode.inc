@@ -12,6 +12,7 @@ SD_Mode_Init
 	call Load_framebuffer
 	LoadTable SD_Mode_Init_Fail
 	call SD_init
+	call SD_MODE_FAT
 
 	btfss STATUS,Z
 	call blit_print_table_string

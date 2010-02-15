@@ -165,9 +165,9 @@ FAT_init
 	movwf entryname+.3
 	movlw "1"
 	movwf entryname+.4
-	movlw "0"
+	movlw "2"
 	movwf entryname+.5
-	movlw "1"
+	movlw "3"
 	movwf entryname+.6
 	movlw " "
 	movwf entryname+.7
@@ -438,24 +438,35 @@ FAT_open_entry_sector_loop
 	btfss STATUS,Z
 	retlw .3
 	
-	FAT_open_entry_sector_start
+FAT_open_entry_sector_start
 		movlw 0x08
 		movwf FSR2H
 		movlw 0x0B
 		movwf FSR2L
 
-	FAT_open_entry_entry_loop
+FAT_open_entry_entry_loop
+		;This filters FAT32 long names
 		;This checks if the VolumeID bit is set, it ignores it if so
 		movf INDF2,W
 		andlw b'00001000' 
 		bnz FAT_open_entry_next_entry
 
-		;Now we need to compare the names
+		;Now get the first byte
 		movlw 0x0B
 		subwf FSR2L,F
 		movlw .0
 		subwfb FSR2H,F
 
+		;Check if the entry is deleted
+		movf INDF2,W
+		xorlw 0xE5 
+		bz FAT_open_entry_next_entry
+
+		;Check if the entry is the end of the directory
+		movf INDF2,W
+		bz FAT_open_entry_fail
+
+		;Now we need to compare the names
 		;Load the name in FSR1
 		movlw HIGH(entryname)
 		movwf FSR1H
@@ -470,7 +481,7 @@ FAT_open_entry_sector_loop
 			xorwf POSTINC2,W
 			btfss STATUS,Z
 			bsf STATUS,C
-			FAT_open_loop_ctr = FAT_open_loop_ctr -.1
+FAT_open_loop_ctr = FAT_open_loop_ctr -.1
 		endw
 		
 		;All that above should result in FSR2 being back at the attrib byte
@@ -505,7 +516,7 @@ FAT_open_entry_sector_loop
 		call FAT_save_first_cluster
 		retlw .0
 
-	FAT_open_entry_next_entry
+FAT_open_entry_next_entry
 		movlw .32
 		addwf FSR2L,F
 		movlw .0
@@ -517,7 +528,7 @@ FAT_open_entry_sector_loop
 		bnz FAT_open_entry_entry_loop
 
 	;We've exited the sector, next sector please
-	FAT_open_entry_next_sector
+FAT_open_entry_next_sector
 		;Increase the sector address
 		movlw .2 ;A sector is 2 in byte adresses	
 		addwf SD_addr+0,F
@@ -548,7 +559,7 @@ FAT_open_entry_sector_loop
 	xorlw .0
 	bz FAT_open_entry_cluster_start
 
-	;Failed to lookup the file
+FAT_open_entry_fail
 	retlw .1
 ;/////////////////////////////////////////////////////////
 ;Uses the FAT table to look up the next cluster
@@ -559,20 +570,21 @@ FAT_follow_FAT
 	;Turn the byte address into a sector address
 	call convert_byte_in_addr
 	
-	;The first 5 bits are the address of the FAT entry in the FAT sector
-	;The other 19bits are the half sector offsets to the start of the FAT table.
+	;The first 7 bits are the address of the FAT entry in the FAT sector
+	;The other 17 bits are the half sector offsets to the start of the FAT table.
 	movf SD_addr+0,W
-	andlw b'00011111'
+	andlw b'01111111'
 	movwf FAT_sector_offset
 
-	;Now divide by 5, to get the sector of the FAT required
-	;TODO: fix this expensive piece of code, try using swaps
+	;Now divide by 7, to get the sector of the FAT required
+	;TODO: fix this expensive piece of code
 	div2_24bit SD_addr,SD_addr
 	div2_24bit SD_addr,SD_addr
 	div2_24bit SD_addr,SD_addr
 	div2_24bit SD_addr,SD_addr
 	div2_24bit SD_addr,SD_addr
-
+	div2_24bit SD_addr,SD_addr
+	div2_24bit SD_addr,SD_addr
 	;Finally we add the fat_begin_lba
 	add_24bit SD_addr, fat_begin_lba
 	;Multiply by two again for sectors to bytes
