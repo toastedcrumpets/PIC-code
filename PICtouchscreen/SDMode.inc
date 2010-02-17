@@ -67,19 +67,19 @@ SD_MODE_FAT
 	TSTFSZ WREG
 	bra SD_MODE_FAT_fail
 
-	movlw "N"
+	movlw "T"
 	movwf entryname+.0
 	movlw "E"
 	movwf entryname+.1
-	movlw "W"
+	movlw "S"
 	movwf entryname+.2
-	movlw "F"
+	movlw "T"
 	movwf entryname+.3
-	movlw "I"
+	movlw "6"
 	movwf entryname+.4
-	movlw "L"
+	movlw "0"
 	movwf entryname+.5
-	movlw "E"
+	movlw " "
 	movwf entryname+.6
 	movlw " "
 	movwf entryname+.7
@@ -105,17 +105,45 @@ SD_MODE_FAT
 	;call FAT_get_FAT
 	;call FAT_get_owner_cluster
 
-	;call FAT_load_root
-	;call FAT_delete_entry
-
 	call FAT_load_root
-	call FAT_new_entry
-	xorlw .0
-	bnz SD_MODE_FAT_fail
+	call FAT_delete_entry
 
-	call SD_write
-	xorlw .0
-	bnz SD_MODE_FAT_fail
+	;/////////////////////////////////////////////////
+	;Make a file a two cluster long
+	;call FAT_load_root
+	;clrf FAT_newfile_attrib
+	;movlw .2
+	;movwf FAT_newfile_size 
+
+	;call FAT_new_entry
+	;xorlw .0
+	;bnz SD_MODE_FAT_fail
+
+	;/////////////////////////////////////////////////
+	;Now load it
+	;call FAT_load_root
+	;call FAT_open_entry
+	;xorlw .0
+	;bnz SD_MODE_FAT_fail
+
+	;call SD_read
+	;xorlw .0
+	;bnz SD_MODE_FAT_fail
+
+	;call convert_byte_in_addr
+	;call FAT_get_FAT
+	;call SD_read
+	;xorlw .0
+	;bnz SD_MODE_FAT_fail
+
+	;movff POSTINC1,SD_addr+0
+	;movff POSTINC1,SD_addr+1
+	;movff POSTINC1,SD_addr+2
+
+	;call convert_cluster_in_addr
+	;call SD_read
+	;xorlw .0
+	;bnz SD_MODE_FAT_fail
 
 SD_MODE_FAT_fail
 	call touch_wait_for_release	

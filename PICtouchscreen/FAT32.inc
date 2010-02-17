@@ -19,6 +19,8 @@ FAT_temp_addr2:3
 FAT_temp_addr3:3
 FAT_temp_var
 FAT_temp_var2
+FAT_newfile_size
+FAT_newfile_attrib
 
 ;What the current cluster is (the attribute byte)
 currentEntryState
@@ -1123,7 +1125,7 @@ FAT_get_blank_FAT_chain_loop
 	decfsz FAT_temp_var
 	bra FAT_get_blank_FAT_chain_loop
 
-;Now we're at the end of the chain, terminate it
+;Now we're at the end of the chain, terminate it, This stores the offset in FSR1
 	call FAT_terminate_FAT_entry
 	TSTFSZ WREG
 	retlw .3
@@ -1133,13 +1135,15 @@ FAT_get_blank_FAT_chain_loop
 	cp_24bit SD_addr, FAT_temp_addr
 
 ;Then recalculate the FAT address
-	call convert_cluster_in_addr
 	call FAT_get_FAT
 
 	;Load the table and jump into the loop
 	call SD_read
 	TSTFSZ WREG
 	retlw .2
+
+	movff FSR1H,FSR2H
+	movff FSR1L,FSR2L
 
 	bra FAT_get_blank_FAT_chain_entloop_skip
 
@@ -1180,15 +1184,25 @@ FAT_get_blank_FAT_chain_entloop
 	movlw .0
 	subwfb FSR2H,F
 
+	movff FSR2H,FSR1H
+	movff FSR2L,FSR1L
 	call FAT_get_owner_cluster
+
 	;Save it
 	cp_24bit SD_addr, FAT_temp_addr
 	;Then recalculate the FAT address
-	call convert_cluster_in_addr
+	;call convert_cluster_in_addr
 	call FAT_get_FAT
 
 	;Now decide if this is enough clusters
-	dcfsnz FAT_temp_var2
+	decfsz FAT_temp_var2
+	bra FAT_get_blank_FAT_chain_entloop_skip
+
+	;We're done, save the FAT table
+	call FAT_delete_entry_update_FAT
+	TSTFSZ WREG
+	retlw .139
+
 	retlw .0
 
 FAT_get_blank_FAT_chain_entloop_skip
@@ -1203,7 +1217,18 @@ FAT_get_blank_FAT_chain_entloop_skip
 	xorwf FSR2H,W
 	bnz FAT_get_blank_FAT_chain_entloop
 
-	;We need to go to the next sector, save the current address
+	;We need to go to the next sector, 
+	;Write the changes so far
+	call FAT_delete_entry_update_FAT
+	TSTFSZ WREG
+	retlw .140
+
+	;/Reset it to the first FAT after FAT_delete_entry_update_FAT
+	div2_24bit SD_addr	
+	sub_24bit SD_addr,sectors_per_fat
+	x2_24bit SD_addr
+
+	;save the current address
 	cp_24bit SD_addr, FAT_temp_addr2
 	div2_24bit FAT_temp_addr2
 	sub_24bit FAT_temp_addr2,fat_begin_lba
@@ -1270,12 +1295,26 @@ FAT_get_owner_cluster
 	retlw .0
 
 ;///////////////////////////////////////////////////////////////////////
-;Makes a new entry with a name of entryname and attributes of currentEntryState
+;Makes a new entry with a name of entryname and attributes of FAT_newfile_attrib, and of size
+; WREG clusters
 ;The FAT_get_blank_entry entry pretty much changes every variable
 FAT_new_entry
-	;//First allocate the clusters required and place the start in 
-	;FAT_temp_addr3
-	
+	;Blank FAT_temp_addr3 incase we have a file of size 0
+	clrf FAT_temp_addr3+0
+	clrf FAT_temp_addr3+1
+	clrf FAT_temp_addr3+2
+
+	;Now allocate the clusters if required
+	movf FAT_newfile_size,W
+	bz FAT_new_entry_write_entry
+
+	call FAT_get_blank_FAT_chain
+	TSTFSZ WREG
+	retlw .115
+
+	cp_24bit FAT_temp_addr,FAT_temp_addr3
+
+FAT_new_entry_write_entry
 	call FAT_get_blank_entry
 	TSTFSZ WREG
 	retlw .1
@@ -1295,7 +1334,7 @@ FAT_new_entry_name_loop
 	bra FAT_new_entry_name_loop
 
 	;Write the attribute byte (offset 0x0B)
-	clrf POSTINC2
+	movff FAT_newfile_attrib,POSTINC2
 
 	clrf POSTINC2 ;Case information (leave as 0x00) (offset 0x0C)
 	clrf POSTINC2 ;Create time (10 ms) (offset 0x0D)
@@ -1307,7 +1346,7 @@ FAT_new_entry_name_loop
 	clrf POSTINC2 ;".............." b'YYYYYYYM' 
 	
 	;Cluster high bytes (offset 0x14) (0x00000000 is 0 size)
-	clrf POSTINC2
+	movff FAT_temp_addr3+2,POSTINC2
 	clrf POSTINC2
 
 	clrf POSTINC2 ;Last modified time b'MMMSSSSS' (offset 0x16)
@@ -1316,13 +1355,37 @@ FAT_new_entry_name_loop
 	clrf POSTINC2 ;"................" b'YYYYYYYM'
 
 	;Cluster low bytes (offset 0x1A)
-	clrf POSTINC2
-	clrf POSTINC2
+	movff FAT_temp_addr3+0,POSTINC2
+	movff FAT_temp_addr3+1,POSTINC2
+
+	movf FAT_newfile_size,W
+	mulwf sectors_per_cluster
+
+	;There are 512 bytes per sector, so the size is PROD << 9, so just rlf once then write the high bytes
+	movlw .0
+	bcf STATUS,C
+	rlcf PRODL,F
+	rlcf PRODH,F
+	btfsc STATUS,C
+	bsf WREG,0	
 
 	;File size in bytes (offset 0x1C)
 	clrf POSTINC2
-	clrf POSTINC2	
-	clrf POSTINC2	
-	clrf POSTINC2	
+	movff PRODL,POSTINC2	
+	movff PRODH,POSTINC2	
+	movwf POSTINC2
 
+	call SD_write
+	TSTFSZ WREG
+	retlw .203
+
+	movf FAT_newfile_size,W
+	bz FAT_new_entry_name_return
+
+	cp_24bit FAT_temp_addr3,SD_addr
+	call convert_cluster_in_addr
+	call SD_read
+	TSTFSZ WREG
+	retlw .202
+FAT_new_entry_name_return
 	retlw .0
