@@ -64,20 +64,22 @@ SD_MODE_FAT
 	call SD_Mode_redraw
 	call Load_framebuffer
 	call FAT_init
+	TSTFSZ WREG
+	bra SD_MODE_FAT_fail
 
-	movlw "T"
+	movlw "N"
 	movwf entryname+.0
 	movlw "E"
 	movwf entryname+.1
-	movlw "S"
+	movlw "W"
 	movwf entryname+.2
-	movlw "T"
+	movlw "F"
 	movwf entryname+.3
-	movlw "9"
+	movlw "I"
 	movwf entryname+.4
-	movlw "0"
+	movlw "L"
 	movwf entryname+.5
-	movlw " "
+	movlw "E"
 	movwf entryname+.6
 	movlw " "
 	movwf entryname+.7
@@ -88,16 +90,33 @@ SD_MODE_FAT
 	movlw "T"
 	movwf entryname+.10
 
+	;Cannot fail
 	;call FAT_load_root
+
 	;call FAT_open_entry
 	;xorlw .0
 	;bnz SD_MODE_FAT_fail
 
 	;call SD_read
+	;xorlw .0
+	;bnz SD_MODE_FAT_fail
+
+	;These cannot fail
+	;call FAT_get_FAT
+	;call FAT_get_owner_cluster
+
+	;call FAT_load_root
+	;call FAT_delete_entry
 
 	call FAT_load_root
-	call FAT_delete_entry
-	
+	call FAT_new_entry
+	xorlw .0
+	bnz SD_MODE_FAT_fail
+
+	call SD_write
+	xorlw .0
+	bnz SD_MODE_FAT_fail
+
 SD_MODE_FAT_fail
 	call touch_wait_for_release	
 	return

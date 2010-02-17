@@ -335,6 +335,96 @@ SD_write_busy
 	bsf SD_CLK
 	retlw .0
 
+;//////////////////////////////////////////////////////
+;Write a block into memory
+SD_write_blank
+	bsf SD_CS
+	;Select the device
+	bcf SD_CS
+
+	;Start the command
+	movlw 0xFF
+	call SD_tranceive
+	movlw 0x58
+	call SD_tranceive
+
+	;Transmit the address
+	movf SD_addr+2,W
+	call SD_tranceive
+	movf SD_addr+1,W
+	call SD_tranceive
+	movf SD_addr+0,W
+	call SD_tranceive
+	movlw 0x00
+	call SD_tranceive
+	;The fake CRC
+	movlw 0xFF
+	call SD_tranceive
+
+	;Wait for the confirmation byte
+	call SD_Recv_R1
+
+	xorlw 0x00
+	btfss STATUS,Z
+	retlw .1
+
+	;Load the buffer, use PRODH:PRODL as a counter
+	movlw 0x08
+	movwf PRODH
+	clrf PRODL
+
+	;Give the SD card a few cycles
+	movlw 0xFF
+	call SD_tranceive
+	movlw 0xFF
+	call SD_tranceive
+	;Transmit the start byte
+	movlw 0xFE
+	call SD_tranceive
+
+SD_write_blank_loop
+	movlw 0x00
+	rcall SD_tranceive
+
+	infsnz PRODL,F
+	incf PRODH,F
+	
+	movf PRODH,W
+	xorlw 0x0A
+	bnz SD_write_blank_loop
+
+	;Send dummy CRC
+	movlw 0xFF
+	call SD_tranceive
+	movlw 0xFF
+	call SD_tranceive
+
+	clrf SPI_timeout_block
+SD_write_blank_loop_wait
+	call SD_tranceive
+	
+	;Check if the card has responded
+	xorlw 0xE5
+	btfsc STATUS,Z
+	bra SD_write_blank_busy		
+
+	;otherwise we must wait!
+	;Try delaying a little, this can be a long process
+	call delay_20ms
+
+	decfsz SPI_timeout_block	
+	bra SD_write_blank_loop_wait
+
+	;Failed to recieve the confirmation
+	retlw .2
+
+SD_write_blank_busy
+	call SD_wait_till_free
+	;Deselect the card, set the clk high
+	bsf SD_CS
+	bsf SD_CLK
+	retlw .0
+
 ;/////////////////////////////////////////////////////
 SD_wait_till_free
 	clrf SPI_timeout_block_2
