@@ -65,6 +65,13 @@ incf_24bit macro a
 	incf a+2,F
 	endm
 
+decf_24bit macro a
+	decfsz a+0,F
+	bra $+.6
+	dcfsnz a+1,F
+	decf a+2,F
+	endm
+
 sub_24bit macro a,b
 	movf b+0,W
 	subwf a+0,F
@@ -117,6 +124,25 @@ cp_FSR_24bit macro a,b
 	endm
 
 ;////////////////////////////////////////////////////////
+;Loads a file name from the table pointer
+FAT_load_filename_TBLPTR
+	movlw HIGH(entryname)
+	movwf FSR2H
+	movlw LOW(entryname)
+	movwf FSR2L
+	
+	movlw .11
+
+FAT_load_filename_TBLPTR_loop
+	TBLRD*+
+	movff TABLAT, POSTINC2
+
+	decf WREG
+	bnz FAT_load_filename_TBLPTR_loop
+
+	return
+
+;////////////////////////////////////////////////////////
 ;This function is used when you load a cluster address and want a
 ;data address
 convert_cluster_in_addr_no_offset
@@ -141,15 +167,11 @@ convert_cluster_in_addr
 	call convert_cluster_in_addr_no_offset
 	;Finally we add the cluster_begin_lba
 	add_24bit SD_addr, cluster_begin_lba
-	;Multiply by two again for sectors to bytes
-	x2_24bit SD_addr
+
 	;We're done
 	return
 ;//////////////////////////////////////////////////////////////
 ;this converts the byte address back to a cluster number
-convert_byte_in_addr
-	;Divide by two, to get the sector address
-	div2_24bit SD_addr
 convert_lba_in_addr
 	;subtract the cluster offset
 	sub_24bit SD_addr, cluster_begin_lba
@@ -159,12 +181,12 @@ convert_lba_in_addr
 	bz convert_cluster_in_addr_skip
 
 	movwf PRODH	
-convert_byte_in_addr_loop
+convert_lba_in_addr_loop
 	div2_24bit SD_addr
 	decfsz PRODH
-	bra convert_byte_in_addr_loop
+	bra convert_lba_in_addr_loop
 
-convert_byte_in_addr_skip
+convert_lba_in_addr_skip
 	;finally add 2, as all cluster addresses start at 2
 	movlw .2
 	add_w_24bit SD_addr
@@ -191,6 +213,7 @@ FAT_init_fail
 ;////////////////////////////////////////////////////////
 ;Load the MBR
 FAT_load_MBR
+	;Load LBA=0
 	clrf SD_addr+2
 	clrf SD_addr+1
 	clrf SD_addr
@@ -199,11 +222,8 @@ FAT_load_MBR
 	xorlw .0
 	bnz FAT_failed_to_read_MBR
 	
-	;Load the buffer
-	movlw 0x09
-	movwf FSR2H
-	movlw 0xFE
-	movwf FSR2L
+	;Load the buffer with an offset
+	SD_load_buffer_FSR 2,0x1FE
 
 	;Check for the signature
 	movlw 0x55	
@@ -234,13 +254,10 @@ FAT_failed_MBR
 ;Type is byte 0x04, can be 0x0B or 0x0C
 FAT_parse_MBR
 	;Load the first partition entry
-	movlw 0x09
-	movwf FSR2H
-	movlw 0xC2
-	movwf FSR2L
+	SD_load_buffer_FSR 2,0x1C2
 
 FAT_parse_MBR_loop
-	movf INDF2,W	
+	movf INDF2,W
 	xorlw 0x0B
 	bz FAT_parse_MBR_found_partition
 
@@ -261,7 +278,6 @@ FAT_parse_MBR_found_partition
 
 	cp_FSR_24bit 2,fat_begin_lba
 	cp_24bit fat_begin_lba,SD_addr
-	x2_24bit SD_addr
 
 	call SD_read
 	xorlw .0
@@ -289,10 +305,7 @@ FAT_parse_MBR_noVolID
 ;Then checks for 55AA at the end of the block
 FAT_parse_VolID
 	;Load the first partition entry
-	movlw 0x08
-	movwf FSR2H
-	movlw 0x0B
-	movwf FSR2L
+	SD_load_buffer_FSR 2,0x00B
 
 	movf POSTINC2,W
 	xorlw 0x00
@@ -341,7 +354,7 @@ FAT_parse_VolID_power_loop_cont
 	;Make this into the cluster lba
 	cp_24bit sectors_per_fat,cluster_begin_lba
 
-	;Multiply by two
+	;Multiply by two, as we have 2 FAT tables
 	x2_24bit cluster_begin_lba
 	;Then add fat_begin_lba
 	add_24bit cluster_begin_lba, fat_begin_lba
@@ -352,10 +365,7 @@ FAT_parse_VolID_power_loop_cont
 	cp_FSR_24bit 2,root_dir_first_cluster
 
 	;Check for the signature
-	movlw 0x09
-	movwf FSR2H
-	movlw 0xFE
-	movwf FSR2L
+	SD_load_buffer_FSR 2,0x1FE
 
 	movlw 0x55	
 	xorwf POSTINC2,W
@@ -399,15 +409,9 @@ FAT_load_root
 ;/////////////////////////////////////////////////////////////
 ;Open entry
 ;Returns with a .0 if successful and the attribute byte of the entry in FSR2
- cblock
-sector_count
- endc
 FAT_get_entry
 	;Always reset to the start of the entry
 	rcall FAT_load_first_cluster
-
-FAT_get_entry_cluster_start
-	movff sectors_per_cluster,sector_count
 	call convert_cluster_in_addr
 
 FAT_get_entry_sector_loop
@@ -416,114 +420,77 @@ FAT_get_entry_sector_loop
 	btfss STATUS,Z
 	retlw .1
 	
-FAT_get_entry_sector_start
-		movlw 0x08
-		movwf FSR2H
-		movlw 0x0B
-		movwf FSR2L
+	SD_load_buffer_FSR 2,0x000
 
 FAT_get_entry_entry_loop
-		;This filters FAT32 long names
-		;This checks if the VolumeID bit is set, it ignores it if so
-		movf INDF2,W
-		andlw b'00001000' 
-		bnz FAT_get_entry_next_entry
+	;This filters FAT32 long names
+	;This checks if the VolumeID bit is set, it ignores it if so
+	movlw 0x0B
+	movf PLUSW2,W
+	andlw b'00001000'
+	bnz FAT_get_entry_next_entry
 
-		;Get the first byte of the record
-		movlw 0x0B
-		subwf FSR2L,F
-		movlw .0
-		subwfb FSR2H,F
-		;Check if the entry is deleted
-		movf INDF2,W
-		xorlw 0xE5 
-		bnz FAT_get_entry_EOD_test
+	;Check if the entry is deleted
+	movf INDF2,W
+	xorlw 0xE5 
+	bz FAT_get_entry_next_entry
+
+	;Check if the entry is the end of the directory
+	TSTFSZ INDF2,W
+	bra $+.4
+	retlw .2 ;/EODirectory
+
+	;Now we need to compare the names
+	;Load the name in FSR1
+	movlw HIGH(entryname)
+	movwf FSR1H
+	movlw LOW(entryname)
+	movwf FSR1L
+
+	bcf STATUS,C ;//The carry bit is our error flag
+	;Check for all 11 bytes
+	local FAT_get_entry_loop_ctr = .11
+	while FAT_get_entry_loop_ctr != .0
+		movf POSTINC1,W
+		xorwf POSTINC2,W
+		btfss STATUS,Z
+		bsf STATUS,C
+FAT_get_entry_loop_ctr = FAT_get_entry_loop_ctr -.1
+	endw
+		
+	;All that above should result in FSR2 being back at the attrib byte
+	;Skip if the comparison failed
+	bc FAT_get_entry_next_entry_rewind
+
+	;Success, found the file
+	retlw .0
+
+FAT_get_entry_next_entry_rewind
+	;This moves from the attribute byte to the start byte
+	movlw 0xF0
+	andwf FSR2L,F
 	
-		;It's a deleted entry, go back to the attrib byte for the entry skip
-		movlw 0x0B
-		addwf FSR2L,F
-		movlw .0
-		addwfc FSR2H,F
-		;Then jump to the next entry
-		bra FAT_get_entry_next_entry
-
-FAT_get_entry_EOD_test
-		;Check if the entry is the end of the directory
-		TSTFSZ INDF2,W
-		bra FAT_open_end_skip
-		retlw .2
-
-FAT_open_end_skip
-		;Now we need to compare the names
-		;Load the name in FSR1
-		movlw HIGH(entryname)
-		movwf FSR1H
-		movlw LOW(entryname)
-		movwf FSR1L
-
-		bcf STATUS,C ;//The carry bit is our error flag
-		;Check for all 11 bytes
-		local FAT_open_loop_ctr = .11
-		while FAT_open_loop_ctr != .0
-			movf POSTINC1,W
-			xorwf POSTINC2,W
-			btfss STATUS,Z
-			bsf STATUS,C
-FAT_open_loop_ctr = FAT_open_loop_ctr -.1
-		endw
-		
-		;All that above should result in FSR2 being back at the attrib byte
-		;Skip if the comparison failed
-		bc FAT_get_entry_next_entry
-		
-		;Success, found the file
-		retlw .0
-
 FAT_get_entry_next_entry
-		movlw .32
-		addwf FSR2L,F
-		movlw .0
-		addwfc FSR2H,F
+	movlw .32
+	addwf FSR2L,F
+	movlw .0
+	addwfc FSR2H,F
 
-		;Check we've not exited the sector
-		movlw 0x0A
-		xorwf FSR2H,W
-		bnz FAT_get_entry_entry_loop
+	;Check we've not exited the sector
+	SD_load_buffer_H +2
+	xorwf FSR2H,W
+	bnz FAT_get_entry_entry_loop
 
 	;We've exited the sector, next sector please
-FAT_get_entry_next_sector
-		;Increase the sector address
-		movlw .2
-		add_w_24bit SD_addr
-
-		;Check its not past the last sector and loop
-		decfsz sector_count
-		bra FAT_get_entry_sector_loop
-
-	;Now use the fat to get the next cluster, first, rewind to the start of the cluster
-	;This multiplies by two to convert lba to byte
-	bcf STATUS,C
-	rlcf sectors_per_cluster,W
-	sub_w_24bit SD_addr
-
-	;Load the fat address and check it
-	;Turn the byte address into a sector address
-	call convert_byte_in_addr
-	rcall FAT_get_FAT
-	call SD_read
-	cp_FSR_24bit 1,SD_addr
-
-	rcall FAT_addr_check
+	call FAT_next_sector
 	TSTFSZ WREG
-	retlw .3
+	retlw .3;/There are no more sectors!
 
-	goto FAT_get_entry_cluster_start
+	bra FAT_get_entry_sector_loop
 
 ;/////////////////////////////////////////////////////////
-;Uses the FAT table to look up the next cluster, 
-;takes the cluster address in SD_addr
-;;
-;Returns the SD_addr of the FAT and the LSB of the entry in FSR1
+;Calculates where in the FAT table the cluster in SD_addr 
+;Returns the SD_addr of the FAT and the entry in FSR1
  cblock
 FAT_sector_offset
  endc 
@@ -549,13 +516,12 @@ FAT_get_FAT
 
 	;Load the fat table
 	add_24bit SD_addr, fat_begin_lba
-	x2_24bit SD_addr
 	
 	;Set FSR1 to the FAT entry
 	movf PRODH,W
 	mullw .4
 	movff PRODL,FSR1L
-	movlw 0x08
+	SD_load_buffer_H
 	addwf PRODH,W
 	movwf FSR1H
 	return
@@ -611,7 +577,6 @@ FAT_open_entry
 	addwfc FSR2H,F
 	movff POSTINC2, SD_addr+0
 	movff POSTINC2, SD_addr+1
-	call convert_cluster_in_addr
 	call FAT_save_first_cluster
 	retlw .0
 
@@ -683,13 +648,13 @@ FAT_delete_entry_loop
 
 	;Check the value wasn't >= 0xXFFFF8, if it isn't then branch
 	call FAT_addr_check
-	xorlw .0
-	bnz FAT_delete_entry_cache_handle
+	movf WREG,W
+	bz FAT_delete_entry_cache_handle
 
 	;So we reached the end of the chain, write the table
 	;Restore the FAT location
 	cp_24bit FAT_temp_addr,SD_addr
-	call FAT_delete_entry_update_FAT
+	call FAT_update_FAT
 	TSTFSZ WREG
 	retlw .5
 
@@ -718,10 +683,9 @@ FAT_delete_entry_cache_handle
 	bra FAT_delete_entry_loop
 
 FAT_delete_entry_cant_cache
-
 	swap_24bit SD_addr,FAT_temp_addr
 
-	call FAT_delete_entry_update_FAT
+	call FAT_update_FAT
 	cp_24bit FAT_temp_addr,SD_addr
 	call SD_read
 	TSTFSZ WREG
@@ -730,16 +694,18 @@ FAT_delete_entry_cant_cache
 	;Now loop
 	bra FAT_delete_entry_loop
 
-FAT_delete_entry_update_FAT
+;/////////////////////////////////////////////////////////////////////////////////
+;Assuming you're at a sector of the FAT, this will write your changes to both FAT
+;And leave you in the second FAT, if you want to go back just 
+;sub_24bit SD_addr,sectors_per_fat
+FAT_update_FAT
 	;Writes to the two FAT tables
 	call SD_write
 	TSTFSZ WREG
 	retlw .7
 
-	;Find the second FAT table and write it
-	div2_24bit SD_addr	
-	add_24bit SD_addr,sectors_per_fat
-	x2_24bit SD_addr	
+	;Find the second FAT table and write it	
+	add_24bit SD_addr,sectors_per_fat	
 	call SD_write
 	return
 
@@ -750,6 +716,9 @@ FAT_delete_entry_update_FAT
 ;But you must perform a SD_write to ensure the SD card is up to date, once you've 
 ;edited the entry
 ;Changes SD_addr, FSR2, FSR1, WREG, sector_count, FAT_temp_addr, FAT_temp_addr2
+ cblock
+sector_count
+ endc
 FAT_get_blank_entry
 	;Check we're not in a file already
 	btfss FAT_is_DIR
@@ -768,10 +737,7 @@ FAT_get_blank_entry_sector_loop
 	retlw .2
 	
 FAT_get_blank_entry_sector_start
-		movlw 0x08
-		movwf FSR2H
-		movlw 0x00
-		movwf FSR2L
+	SD_load_buffer_FSR 2,0x000
 
 FAT_get_blank_entry_entry_loop
 		;Check if the entry is deleted or EOD
@@ -807,12 +773,11 @@ FAT_get_blank_entry_entry_loop
 	;We're passed the last sector of the current cluster
 	;Use the fat to get the next cluster, first, rewind to the start of the cluster
 	;This multiplies by two to convert lba to byte
-	bcf STATUS,C
-	rlcf sectors_per_cluster,W
+	movf sectors_per_cluster,W
 	sub_w_24bit SD_addr
 
 	;Turn the byte address into a sector address
-	call convert_byte_in_addr
+	call convert_lba_in_addr
 
 	;Load the fat address and check it
 	rcall FAT_get_FAT
@@ -834,8 +799,9 @@ FAT_get_blank_entry_entry_loop
 ;//The end of the directory is found in FSR2 and SD_addr, check the next entry
 FAT_get_blank_entry_EOD_found
 	;Check it's not the last entry in the sector
-	movlw 0x09
-	xorwf FSR2H,W
+	SD_load_buffer_H
+	subwf FSR2H,W
+	xorlw 0x01
 	bnz FAT_get_blank_entry_EOD_inc
 
 	movlw 0xE0
@@ -848,14 +814,12 @@ FAT_get_blank_entry_EOD_found
 	bra FAT_get_blank_entry_EOD_EOC
 
 	;It's not past the last sector of the cluster, write a blank sector there and return to the previous sector 
-	movlw .2
-	add_w_24bit SD_addr
+	incf_24bit SD_addr
 	call SD_write_blank
 	TSTFSZ WREG	
 	retlw .4	
 
-	movlw .2
-	sub_w_24bit SD_addr
+	decf_24bit SD_addr
 
 	;mark the entry as blank
 	movlw 0xE5
@@ -880,15 +844,10 @@ FAT_get_blank_entry_EOD_EOC
 	;Save the current addr
 	cp_24bit SD_addr,FAT_temp_addr
 
-	;The sector was the last sector in the cluster, and probably the last cluster, but we need to check
-	;Turn the byte address into a cluster address
 	;Only should subtract (sectors_per_cluster-1) sectors, as we didn't overflow
-	movlw .1
-	subwf sectors_per_cluster,W
-	bcf STATUS,C
-	rlcf WREG
+	decf sectors_per_cluster,W
 	sub_w_24bit SD_addr
-	call convert_byte_in_addr
+	call convert_lba_in_addr
 
 	;Load the fat address and check it
 	rcall FAT_get_FAT
@@ -913,10 +872,7 @@ FAT_get_blank_entry_EOD_EOC
 	retlw .6
 
 	;Mark the entry as blank
-	movlw 0x09
-	movwf FSR2H
-	movlw 0xE0
-	movwf FSR2L
+	SD_load_buffer_FSR 2,0x1E0
 
 	movlw 0xE5
 	movwf INDF2
@@ -947,20 +903,17 @@ FAT_get_blank_entry_EODir_loop
 	call SD_write_blank
 	
 	;Next sector
-	movlw .2
-	add_w_24bit SD_addr
+	incf_24bit SD_addr
 	decfsz FAT_temp_var,F
 	bra FAT_get_blank_entry_EODir_loop
 
 	;Now write the new cluster to this entry
 	;Find the cluster FAT entry
 	cp_24bit FAT_temp_addr,SD_addr
-	movlw .1
-	subwf sectors_per_cluster,W 
-	bcf STATUS,C
-	rlcf WREG
+	decf sectors_per_cluster,W 
 	sub_w_24bit SD_addr
-	call convert_byte_in_addr
+
+	call convert_lba_in_addr
 
 	;Get the FAT entry
 	rcall FAT_get_FAT
@@ -974,7 +927,7 @@ FAT_get_blank_entry_EODir_loop
 	movlw .0
 	movwf POSTINC1
 
-	call FAT_delete_entry_update_FAT
+	call FAT_update_FAT
 
 	;Restore the original location
 	cp_24bit FAT_temp_addr,SD_addr
@@ -983,10 +936,7 @@ FAT_get_blank_entry_EODir_loop
 	retlw .6
 
 	;Mark the entry as blank
-	movlw 0x09
-	movwf FSR2H
-	movlw 0xE0
-	movwf FSR2L
+	SD_load_buffer_FSR 2,0x1E0
 
 	movlw 0xE5
 	movwf INDF2
@@ -999,17 +949,12 @@ FAT_get_blank_entry_EODir_loop
 FAT_get_blank_FAT
 	;Load the FAT table
 	cp_24bit fat_begin_lba,SD_addr
-	x2_24bit SD_addr
-
 	;For the first part of the table we must start at the 3rd entry 
 	call SD_read
 	TSTFSZ WREG
 	retlw .1
 
-	movlw 0x08
-	movwf FSR2H
-	movlw 0x08
-	movwf FSR2L
+	SD_load_buffer_FSR 2,0x008
 	bra FAT_get_blank_FAT_loop_2
 
 FAT_get_blank_FAT_loop
@@ -1017,9 +962,7 @@ FAT_get_blank_FAT_loop
 	TSTFSZ WREG
 	retlw .2
 
-	movlw 0x08
-	movwf FSR2H
-	clrf FSR2L
+	SD_load_buffer_FSR 2,0x000
 	
 FAT_get_blank_FAT_loop_2
 	;Check if the entry is blank
@@ -1054,7 +997,6 @@ FAT_get_blank_FAT_loop_2_skip
 
 	;Check it's not the last FAT sector
 	cp_24bit SD_addr, FAT_temp_addr2
-	div2_24bit FAT_temp_addr2
 	sub_24bit FAT_temp_addr2,sectors_per_fat
 	sub_24bit FAT_temp_addr2,fat_begin_lba
 
@@ -1071,8 +1013,7 @@ FAT_get_blank_FAT_loop_2_skip
 
 FAT_get_blank_FAT_next_sector
 	;It's not the last sector, so jump to the next
-	movlw .2
-	add_w_24bit SD_addr
+	incf_24bit SD_addr
 
 	;It's ok, so loop
 	bra FAT_get_blank_FAT_loop
@@ -1094,14 +1035,12 @@ FAT_terminate_FAT_entry
 	movlw 0x0F
 	movwf INDF2
 
-	call FAT_delete_entry_update_FAT
+	call FAT_update_FAT
 	TSTFSZ WREG
 	retlw .1
 
 	;/Reset it to the first FAT after FAT_delete_entry_update_FAT
-	div2_24bit SD_addr	
 	sub_24bit SD_addr,sectors_per_fat
-	x2_24bit SD_addr
 
 	;Restore the FSR
 	movff FSR1H,FSR2H
@@ -1161,10 +1100,7 @@ FAT_get_blank_FAT_chain_secloop
 	TSTFSZ WREG
 	retlw .2
 
-	movlw 0x09
-	movwf FSR2H
-	movlw 0xFC
-	movwf FSR2L
+	SD_load_buffer_FSR 2,0x1FC
 	
 FAT_get_blank_FAT_chain_entloop
 	;Check if the entry is blank
@@ -1208,7 +1144,7 @@ FAT_get_blank_FAT_chain_entloop
 	bra FAT_get_blank_FAT_chain_entloop_skip
 
 	;We're done, save the FAT table
-	call FAT_delete_entry_update_FAT
+	call FAT_update_FAT
 	TSTFSZ WREG
 	retlw .139
 
@@ -1222,24 +1158,22 @@ FAT_get_blank_FAT_chain_entloop_skip
 	subwfb FSR2H,F
 
 	;Check if we need to go to the next sector
-	movlw 0x07
+	SD_load_buffer_H - 1
 	xorwf FSR2H,W
 	bnz FAT_get_blank_FAT_chain_entloop
 
 	;We need to go to the next sector, 
 	;Write the changes so far
-	call FAT_delete_entry_update_FAT
+	call FAT_update_FAT
 	TSTFSZ WREG
 	retlw .140
 
 	;/Reset it to the first FAT after FAT_delete_entry_update_FAT
-	div2_24bit SD_addr	
 	sub_24bit SD_addr,sectors_per_fat
-	x2_24bit SD_addr
 
 	;save the current address
 	cp_24bit SD_addr, FAT_temp_addr2
-	div2_24bit FAT_temp_addr2
+
 	sub_24bit FAT_temp_addr2,fat_begin_lba
 
 	;Check it's not the First FAT sector
@@ -1255,8 +1189,7 @@ FAT_get_blank_FAT_chain_entloop_skip
 
 FAT_get_blank_FAT_chain_nextsec
 	;It's not the last sector, so jump to the prev sector
-	movlw .2
-	sub_w_24bit SD_addr
+	decf_24bit SD_addr
 
 	;It's ok, so loop
 	bra FAT_get_blank_FAT_chain_secloop
@@ -1271,7 +1204,6 @@ FAT_get_owner_cluster
 	;and the last 7 are in (FSR1 - .0x0800)/4
 
 	;Restore SD_addr to the upper 17bits of the cluster address
-	div2_24bit SD_addr
 	sub_24bit SD_addr, fat_begin_lba
 
 	;No need to do the minus 0x08 from FSR1, just keep only the LSB and it's the same
@@ -1393,68 +1325,61 @@ FAT_new_entry_name_loop
 
 	cp_24bit FAT_temp_addr3,SD_addr
 	call convert_cluster_in_addr
-	call SD_read
-	TSTFSZ WREG
-	retlw .202
+
 FAT_new_entry_name_return
 	retlw .0
 
 ;////////////////////////////////////////////////////
-;
+;Gets the next sector of a file or directory currently 
+;loaded in SD_addr
+;returns WREG=0: Gives the next sector in SD_addr, ready for a SD_read
+;returns WREG=1: It's the end of the entry
+;returns WREG=2: The SD_read failed
 FAT_next_sector
-	;Temporarily make sectors_per_cluster a mask
+	;Temporarily make sectors_per_cluster a bit mask
 	decf sectors_per_cluster,F
-
-	;Turn SD_addr into a LBA address
-	div2_24bit SD_addr
-
-	;Check if the address is the last sector
-	incf SD_addr+0,W ;/This should wrap if the internal cluster bits are masked		
-	andwf sectors_per_cluster,W
+	
+	;Get the offset of the first cluster LBA (so a simple masking will tell if you've crossed a cluster boundary)
+	;We only subtract the offset-1, as it will be zero when masked if the sector has wrapped
+	decf  cluster_begin_lba+0,W
+	;Remove this offset from the SD_addr
+	subwf SD_addr+0,W
+	;Mask the lowest bits	
+ 	andwf sectors_per_cluster,W	
 	;If it is 0, do a FAT lookup
 	bz FAT_next_sector_next_cluster
-
+	
 	;We're still in the same cluster
 	;Just increment the lba
 	incf_24bit SD_addr
-	x2_24bit SD_addr
 
 	;Restore sectors_per_cluster
 	incf sectors_per_cluster,F
 	retlw .0
 
 FAT_next_sector_next_cluster
-	;It's the last sector of a cluster, get the inital sector of the cluster
+	;It's the last sector of a cluster, get the inital sector of the cluster (can use the mask as it's one less)
 	movf sectors_per_cluster,W
-	andwf SD_addr+0,F
+	sub_w_24bit SD_addr
 
 	;Restore sectors_per_cluster
 	incf sectors_per_cluster,F
 
-	;Now get the FAT entry of the next cluster	
+	;Now get the FAT entry of the next cluster, convert to a cluster address
 	call convert_lba_in_addr
 	call FAT_get_FAT
+	
 	call SD_read
 	TSTFSZ WREG
-	retlw .1 ;//The last cluster of a FAT entry
+	retlw .2 ;//Read failure of the FAT
 
 	movff POSTINC1,SD_addr+0
 	movff POSTINC1,SD_addr+1
 	movff POSTINC1,SD_addr+2
 
-	call convert_cluster_in_addr
-	call SD_read
+	call FAT_addr_check
 	TSTFSZ WREG
-	retlw .2 ;Read failure
+	retlw .1 ;EOEntry	
 
+	call convert_cluster_in_addr
 	retlw .0
-
-
-;24 bit variables (the upper byte is not needed, as we use low capacity cards
-;fat_begin_lba:3
-;cluster_begin_lba:3
-;sectors_per_fat:3
-;sectors_per_cluster
-;sectors_per_cluster_power
-;cluster_byte_mask
-;root_dir_first_cluster:3

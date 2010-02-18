@@ -59,6 +59,17 @@ SD_Mode_redraw
 	call blit_box_print_table_string
 	return
 
+;///////////////////////////////////////////////////////////////////////
+;Filenames made by a PC are always uppercase (the long filename contains
+;the mixed case version. New files created in this driver can be mixed case.
+;
+;The filenames must be 8+3 characters, long filenames are not supported.
+;The last 3 characters are for file extensions
+
+file1   db "TEST    PDF"
+file2   db "NEWFILE TXT"
+folder1 db "TESTDIR    "
+
 ;//////////////////////////////////////
 SD_MODE_FAT
 	call SD_Mode_redraw
@@ -67,83 +78,108 @@ SD_MODE_FAT
 	TSTFSZ WREG
 	bra SD_MODE_FAT_fail
 
-	movlw "T"
-	movwf entryname+.0
-	movlw "E"
-	movwf entryname+.1
-	movlw "S"
-	movwf entryname+.2
-	movlw "T"
-	movwf entryname+.3
-	movlw "1"
-	movwf entryname+.4
-	movlw "1"
-	movwf entryname+.5
-	movlw "0"
-	movwf entryname+.6
-	movlw " "
-	movwf entryname+.7
-	movlw "T"
-	movwf entryname+.8
-	movlw "X"
-	movwf entryname+.9
-	movlw "T"
-	movwf entryname+.10
+	;////////////////////////////////////////////////
+	;Delete file1="test.pdf" in the root directory
 
-	;Cannot fail
-	;call FAT_load_root
-
-	;call FAT_open_entry
-	;xorlw .0
-	;bnz SD_MODE_FAT_fail
-
-	;call SD_read
-	;xorlw .0
-	;bnz SD_MODE_FAT_fail
-
-	;These cannot fail
-	;call FAT_get_FAT
-	;call FAT_get_owner_cluster
-
-	;call FAT_load_root
-	;call FAT_delete_entry
-
-	;/////////////////////////////////////////////////
-	;Make a file a two cluster long
-	;call FAT_load_root
-	;clrf FAT_newfile_attrib
-	;movlw .2
-	;movwf FAT_newfile_size 
-
-	;call FAT_new_entry
-	;xorlw .0
-	;bnz SD_MODE_FAT_fail
-
-	;/////////////////////////////////////////////////
-	;Now load it
+	;Get the root directory
 	call FAT_load_root
-	call FAT_open_entry
+
+	;Load the first file name into entryname
+	LoadTable file1
+	call FAT_load_filename_TBLPTR
+
+	call FAT_delete_entry
 	xorlw .0
 	bnz SD_MODE_FAT_fail
 
-	;call SD_read
-	;xorlw .0
-	;bnz SD_MODE_FAT_fail
+	;/////////////////////////////////////////////////
+	;Make a new file (file2="NEWFILE.TXT") which is 
+	;two clusters long 
+	;(a cluster is *usually* 8 sectors 8x512=4096 bytes
 
-	;call convert_byte_in_addr
-	;call FAT_get_FAT
-	;call SD_read
-	;xorlw .0
-	;bnz SD_MODE_FAT_fail
+	;Load the root directory
+	call FAT_load_root
 
-	;movff POSTINC1,SD_addr+0
-	;movff POSTINC1,SD_addr+1
-	;movff POSTINC1,SD_addr+2
+	;Load the new file name into entryname
+	LoadTable file2
+	call FAT_load_filename_TBLPTR
 
-	;call convert_cluster_in_addr
-	;call SD_read
-	;xorlw .0
-	;bnz SD_MODE_FAT_fail
+	;Normal files have no attributes
+	clrf FAT_newfile_attrib
+
+	;Set the number of clusters for the file
+	movlw .2
+	movwf FAT_newfile_size 
+
+	;Make the new file
+	call FAT_new_entry
+	xorlw .0
+	bnz SD_MODE_FAT_fail
+
+	;FAT_new_entry leaves us at the first sector of the new file in SD_addr
+
+	;//NOTE: the SD buffer is not "safe" across FAT calls, the FAT calls use 
+	;it, so allocate files then write/generate data for them
+
+Fill_file_loop
+	;Fill the SD buffer with some example data (M characters)
+	SD_load_buffer_FSR 2,0x000
+
+Fill_SD_buffer_loop
+	movlw "M"
+	movwf POSTINC2
+
+	SD_load_buffer_H + 2
+	xorwf FSR2H,W
+	bnz	Fill_SD_buffer_loop
+
+	;Buffer is full, write it to the file
+	call SD_write
+	xorlw .0
+	bnz SD_MODE_FAT_fail
+
+	;Fetch the next sector of the file
+	call FAT_next_sector
+	xorlw .0
+	bz Fill_file_loop
+
+	;We're here because FAT_next_sector failed (probably due to a EOF)
+	;Check it is an EOF
+	xorlw .1
+	bnz SD_MODE_FAT_fail
+
+	;/////////////////////////////////////////////////
+	;Load a directory (TESTDIR) and make a blank new file in it of zero size
+
+	;Load the root directory
+	call FAT_load_root
+
+	;Load the subdirectory name
+	LoadTable folder1
+	call FAT_load_filename_TBLPTR
+
+	;Open the subdirectory
+	call FAT_open_entry
+	xorlw .0
+	bnz SD_MODE_FAT_fail
+	
+	;Load the new file name
+	LoadTable file2
+	call FAT_load_filename_TBLPTR
+
+	;Make the blank file
+	;Normal files have no attributes
+	clrf FAT_newfile_attrib
+
+	;Set the number of clusters for the file
+	movlw .0
+	movwf FAT_newfile_size 
+
+	;Make the new file
+	call FAT_new_entry
+	xorlw .0
+	bnz SD_MODE_FAT_fail
+	
 
 SD_MODE_FAT_fail
 	call touch_wait_for_release	

@@ -4,17 +4,23 @@
 ;#define SD_CLK LATD,4
 ;#define SD_DO PORTD,5
 
+;The buffer of data must be 256bit aligned, 
+;so you can only set the high ram byte
+ #define SD_load_buffer_H movlw 0x08
+
+;This just helps you keep out of the memory without using
+;indirect addressing
  __badram 0x0800-0x09ff
 
  cblock
 SPI_timeout_block,SPI_timeout_block_2
-SD_addr:3 ;Upper 3 bytes of the address (LSB cannot be set)
+SD_addr:3 ;LBA of the sector (sub sectors cannot be set)
  endc
 
 ;////////////////////////////////////////////////////////
 ;Table of SD commands, bit details
 ;[47] start bit (a 0)
-;[46] transmission bit (1= host to device)
+;[46] transmission bit (1= host to device, 0= device to host)
 ;[45:40] Command index
 ;[39:8] Argument (E.g. address)
 ;[7:1] CRC7
@@ -28,9 +34,20 @@ SD_CMD0 db 0x40,0x00,0x00,0x00,0x00,0x95
 SD_CMD1 db 0x41,0x00,0x00,0x00,0x00,0xFF
 
 ;///////////////////////////////////////////////////////
-;Error messages
-CMD0_fail db "CMD0 failure",0x00
-CMD1_fail db "CMD1 failure",0x00
+SD_load_buffer_FSR macro a,offset
+	SD_load_buffer_H+HIGH(offset)
+	movwf FSR#v(a)H
+	movlw LOW(offset)
+	movwf FSR#v(a)L
+	endm
+
+SD_load_buffer_end_FSR macro a
+	SD_load_buffer_H +1
+	movwf FSR#v(a)H
+	movlw 0xFF
+	clrf FSR#v(a)L
+	endm
+
 
 ;///////////////////////////////////////////////////
 SD_init
@@ -65,10 +82,6 @@ SD_init_CMD1_loop
 	LoadTable SD_CMD1
 	call SD_Send_Cmd
 	call SD_Recv_R1
-	
-	;call W_2HEX_to_LCD
-	;movf SD_SPI_recv,W
-
 	xorlw 0x00
 	btfsc STATUS,Z
 	bra SD_init_end
@@ -175,6 +188,40 @@ SD_tranceive_loop
 	return
 
 ;//////////////////////////////////////////////////////
+;This converts the LBA address in SD_addr to the format 
+;the SD_card's controller understands ( SD_addr << 9)
+;while transmitting it to the controller
+SD_transmit_addr
+	;Transmit the address
+	bcf STATUS,C
+	rlcf SD_addr+2,W
+	btfsc SD_addr+1,7
+	bsf WREG,0
+	call SD_tranceive
+
+	bcf STATUS,C
+	rlcf SD_addr+1,W
+	btfsc SD_addr+0,7
+	bsf WREG,0
+	call SD_tranceive
+
+	bcf STATUS,C
+	rlcf SD_addr+0,W
+	call SD_tranceive
+
+	;Last byte is not used 
+	movlw 0x00
+	call SD_tranceive
+
+	;The fake CRC
+	movlw 0xFF
+	call SD_tranceive
+
+	;Wait for the confirmation byte
+	call SD_Recv_R1
+	return
+
+;//////////////////////////////////////////////////////
 ;Read a block into memory
 SD_read
 	bsf SD_CS
@@ -187,23 +234,8 @@ SD_read
 	movlw 0x51
 	call SD_tranceive
 
-	;Transmit the address
-	movf SD_addr+2,W
-	call SD_tranceive
-	movf SD_addr+1,W
-	call SD_tranceive
-	movf SD_addr+0,W
-	call SD_tranceive
-	movlw 0x00
-	call SD_tranceive
-
-	;The fake CRC
-	movlw 0xFF
-	call SD_tranceive
-
-	;Wait for the confirmation byte
-	call SD_Recv_R1
-
+	;Transmit the address while converting to a half sector address
+	call SD_transmit_addr
 	xorlw 0x00
 	btfss STATUS,Z
 	retlw .1
@@ -222,9 +254,7 @@ SD_read_loop
 	;Begin the copy into the buffer
 SD_read_copy
 	;Load the buffer
-	movlw 0x08
-	movwf FSR2H
-	clrf FSR2L
+	SD_load_buffer_FSR 2,0x000
 
 SD_read_copy_loop
 	;This is purely for my oscilliscope, 
@@ -260,30 +290,14 @@ SD_write
 	movlw 0x58
 	call SD_tranceive
 
-	;Transmit the address
-	movf SD_addr+2,W
-	call SD_tranceive
-	movf SD_addr+1,W
-	call SD_tranceive
-	movf SD_addr+0,W
-	call SD_tranceive
-	movlw 0x00
-	call SD_tranceive
-	;The fake CRC
-	movlw 0xFF
-	call SD_tranceive
-
-	;Wait for the confirmation byte
-	call SD_Recv_R1
-
+	;Transmit the address while converting to a half sector address
+	call SD_transmit_addr
 	xorlw 0x00
 	btfss STATUS,Z
 	retlw .1
 
 	;Load the buffer
-	movlw 0x08
-	movwf FSR2H
-	clrf FSR2L
+	SD_load_buffer_FSR 2,0x000
 
 	;Give the SD card a few cycles
 	movlw 0xFF
