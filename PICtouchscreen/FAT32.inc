@@ -58,6 +58,13 @@ add_24bit macro a,b
 	addwfc a+2,F
 	endm
 
+incf_24bit macro a
+	incfsz a+0,F
+	bra $+.6
+	infsnz a+1,F
+	incf a+2,F
+	endm
+
 sub_24bit macro a,b
 	movf b+0,W
 	subwf a+0,F
@@ -143,7 +150,7 @@ convert_cluster_in_addr
 convert_byte_in_addr
 	;Divide by two, to get the sector address
 	div2_24bit SD_addr
-
+convert_lba_in_addr
 	;subtract the cluster offset
 	sub_24bit SD_addr, cluster_begin_lba
 
@@ -296,11 +303,13 @@ FAT_parse_VolID
 
 	;Zero the power
 	clrf sectors_per_cluster_power
+
 	;Sectors per cluster is loaded
 	movf POSTINC2,W
 	movwf sectors_per_cluster
-
+	
 	;Now we calculate which power of two it is
+	;And generate the mask
 FAT_parse_VolID_power_loop
 	rrcf WREG 
 	btfsc STATUS,C
@@ -1389,3 +1398,63 @@ FAT_new_entry_name_loop
 	retlw .202
 FAT_new_entry_name_return
 	retlw .0
+
+;////////////////////////////////////////////////////
+;
+FAT_next_sector
+	;Temporarily make sectors_per_cluster a mask
+	decf sectors_per_cluster,F
+
+	;Turn SD_addr into a LBA address
+	div2_24bit SD_addr
+
+	;Check if the address is the last sector
+	incf SD_addr+0,W ;/This should wrap if the internal cluster bits are masked		
+	andwf sectors_per_cluster,W
+	;If it is 0, do a FAT lookup
+	bz FAT_next_sector_next_cluster
+
+	;We're still in the same cluster
+	;Just increment the lba
+	incf_24bit SD_addr
+	x2_24bit SD_addr
+
+	;Restore sectors_per_cluster
+	incf sectors_per_cluster,F
+	retlw .0
+
+FAT_next_sector_next_cluster
+	;It's the last sector of a cluster, get the inital sector of the cluster
+	movf sectors_per_cluster,W
+	andwf SD_addr+0,F
+
+	;Restore sectors_per_cluster
+	incf sectors_per_cluster,F
+
+	;Now get the FAT entry of the next cluster	
+	call convert_lba_in_addr
+	call FAT_get_FAT
+	call SD_read
+	TSTFSZ WREG
+	retlw .1 ;//The last cluster of a FAT entry
+
+	movff POSTINC1,SD_addr+0
+	movff POSTINC1,SD_addr+1
+	movff POSTINC1,SD_addr+2
+
+	call convert_cluster_in_addr
+	call SD_read
+	TSTFSZ WREG
+	retlw .2 ;Read failure
+
+	retlw .0
+
+
+;24 bit variables (the upper byte is not needed, as we use low capacity cards
+;fat_begin_lba:3
+;cluster_begin_lba:3
+;sectors_per_fat:3
+;sectors_per_cluster
+;sectors_per_cluster_power
+;cluster_byte_mask
+;root_dir_first_cluster:3

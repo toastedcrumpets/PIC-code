@@ -75,11 +75,11 @@ SD_MODE_FAT
 	movwf entryname+.2
 	movlw "T"
 	movwf entryname+.3
-	movlw "6"
+	movlw "1"
 	movwf entryname+.4
-	movlw "0"
+	movlw "1"
 	movwf entryname+.5
-	movlw " "
+	movlw "0"
 	movwf entryname+.6
 	movlw " "
 	movwf entryname+.7
@@ -105,8 +105,8 @@ SD_MODE_FAT
 	;call FAT_get_FAT
 	;call FAT_get_owner_cluster
 
-	call FAT_load_root
-	call FAT_delete_entry
+	;call FAT_load_root
+	;call FAT_delete_entry
 
 	;/////////////////////////////////////////////////
 	;Make a file a two cluster long
@@ -121,10 +121,10 @@ SD_MODE_FAT
 
 	;/////////////////////////////////////////////////
 	;Now load it
-	;call FAT_load_root
-	;call FAT_open_entry
-	;xorlw .0
-	;bnz SD_MODE_FAT_fail
+	call FAT_load_root
+	call FAT_open_entry
+	xorlw .0
+	bnz SD_MODE_FAT_fail
 
 	;call SD_read
 	;xorlw .0
