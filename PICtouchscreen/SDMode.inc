@@ -205,6 +205,41 @@ Fill_SD_buffer_loop
 	bnz SD_MODE_FAT_fail
 	
 
+	;/////////////////////////////////////////////////
+	;Goes to the root dir and reads the file we made before
+
+	;Load the root directory
+	call FAT_load_root
+
+	;Load the new file name into entryname
+	LoadTable file2
+	call FAT_load_filename_TBLPTR
+
+	call FAT_open_entry
+	xorlw .0
+	bnz SD_MODE_FAT_fail
+
+	call convert_cluster_in_addr
+
+Read_file_loop
+	call SD_read
+	xorlw .0
+	bnz SD_MODE_FAT_fail		
+	
+	SD_load_buffer_FSR 2,0x000
+	;Do something with each sector (512 bytes) of data pointed to by FSR2
+
+	;Fetch the next sector of the file
+	call FAT_next_sector
+	xorlw .0
+	bz Read_file_loop
+
+	;We're here because FAT_next_sector failed (probably due to a EOF)
+	;Check it is an EOF
+	xorlw .1
+	bnz SD_MODE_FAT_fail
+
+	;////////////////////////////////////////////////////
 	;End of demo
 
 SD_MODE_FAT_fail
