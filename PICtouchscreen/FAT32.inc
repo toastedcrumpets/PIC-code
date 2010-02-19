@@ -671,6 +671,19 @@ FAT_open_entry
 	addwfc FSR2H,F
 	movff POSTINC2, SD_addr+0
 	movff POSTINC2, SD_addr+1
+	
+	;Check if the cluster is the root directory entry (0x00000000)
+	movf SD_addr+0,W
+	bnz FAT_open_entry_not_root_dir
+	movf SD_addr+1,W
+	bnz FAT_open_entry_not_root_dir
+	movf SD_addr+2,W
+	bnz FAT_open_entry_not_root_dir
+
+	;It's the root dir, use the proper address
+	cp_24bit root_dir_first_cluster,SD_addr
+
+FAT_open_entry_not_root_dir
 	call FAT_save_first_cluster
 	retlw .0
 
@@ -1424,6 +1437,23 @@ FAT_new_entry_init_dir
 	;Need to change the cluster address to the previous directory
 	cp_24bit FAT_temp_addr2,FAT_temp_addr3
 
+	;Compare the temp address and if it is the same as the root directory, it should be zero (stupid FAT)
+	movf FAT_temp_addr3+0,W
+	xorwf root_dir_first_cluster+0,W
+	bnz FAT_new_entry_not_1st_lvl
+	movf FAT_temp_addr3+1,W
+	xorwf root_dir_first_cluster+1,W
+	bnz FAT_new_entry_not_1st_lvl
+	movf FAT_temp_addr3+2,W
+	xorwf root_dir_first_cluster+2,W
+	bnz FAT_new_entry_not_1st_lvl
+
+	;It is the root directory, zero it
+	clrf FAT_temp_addr3+0
+	clrf FAT_temp_addr3+1
+	clrf FAT_temp_addr3+2
+
+FAT_new_entry_not_1st_lvl
 	LoadTable FAT_prev_dir
 	call FAT_load_filename_TBLPTR
 	;Now we have the directory we must add two fake entries for "." and ".."
