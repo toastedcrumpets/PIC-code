@@ -263,8 +263,9 @@ SD_read_copy_loop
 
 	rcall SD_tranceive
 	movwf POSTINC2
-	movf FSR2H,W
-	xorlw 0x0A
+
+	SD_load_buffer_H+2
+	xorwf FSR2H,W
 	bnz SD_read_copy_loop
 
 	movlw 0xFF
@@ -312,8 +313,8 @@ SD_write_loop
 	movf POSTINC2,W
 	rcall SD_tranceive
 
-	movf FSR2H,W
-	xorlw 0x0A
+	SD_load_buffer_H+2
+	xorwf FSR2H,W
 	bnz SD_write_loop
 
 	;Send dummy CRC
@@ -350,7 +351,7 @@ SD_write_busy
 	retlw .0
 
 ;//////////////////////////////////////////////////////
-;Write a block into memory
+;Write a blank sector into SD memory
 SD_write_blank
 	bsf SD_CS
 	;Select the device
@@ -362,30 +363,11 @@ SD_write_blank
 	movlw 0x58
 	call SD_tranceive
 
-	;Transmit the address
-	movf SD_addr+2,W
-	call SD_tranceive
-	movf SD_addr+1,W
-	call SD_tranceive
-	movf SD_addr+0,W
-	call SD_tranceive
-	movlw 0x00
-	call SD_tranceive
-	;The fake CRC
-	movlw 0xFF
-	call SD_tranceive
-
-	;Wait for the confirmation byte
-	call SD_Recv_R1
-
+	;Transmit the address while converting to a half sector address
+	call SD_transmit_addr
 	xorlw 0x00
 	btfss STATUS,Z
 	retlw .1
-
-	;Load the buffer, use PRODH:PRODL as a counter
-	movlw 0x08
-	movwf PRODH
-	clrf PRODL
 
 	;Give the SD card a few cycles
 	movlw 0xFF
@@ -396,15 +378,17 @@ SD_write_blank
 	movlw 0xFE
 	call SD_tranceive
 
+	clrf PRODL
+	clrf PRODH
 SD_write_blank_loop
 	movlw 0x00
 	rcall SD_tranceive
 
 	infsnz PRODL,F
 	incf PRODH,F
-	
-	movf PRODH,W
-	xorlw 0x0A
+
+	movlw 0x02	
+	xorwf PRODH,W
 	bnz SD_write_blank_loop
 
 	;Send dummy CRC

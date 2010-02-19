@@ -66,9 +66,10 @@ SD_Mode_redraw
 ;The filenames must be 8+3 characters, long filenames are not supported.
 ;The last 3 characters are for file extensions
 
-file1   db "TEST    PDF"
-file2   db "NEWFILE TXT"
-folder1 db "TESTDIR    "
+file1      db "TEST    PDF"
+file2      db "NEWFILE TXT"
+file3      db "DELETEMETXT"
+folder1    db "TESTDIR    "
 
 ;//////////////////////////////////////
 SD_MODE_FAT
@@ -78,13 +79,13 @@ SD_MODE_FAT
 	TSTFSZ WREG
 	bra SD_MODE_FAT_fail
 
+	;Load the root directory, the FAT library remembers the current directory
+	call FAT_load_root
+
 	;////////////////////////////////////////////////
 	;Delete file1="test.pdf" in the root directory
 
-	;Get the root directory
-	call FAT_load_root
-
-	;Load the first file name into entryname
+	;Load the file name into entryname
 	LoadTable file1
 	call FAT_load_filename_TBLPTR
 
@@ -107,11 +108,11 @@ SD_MODE_FAT
 	;Normal files have no attributes
 	clrf FAT_newfile_attrib
 
-	;Set the number of clusters for the file
+	;Set the number of clusters for the file, (going smaller than a cluster is wasteful and not currently possible)
 	movlw .2
 	movwf FAT_newfile_size 
 
-	;Make the new file
+	;Make the new file, if the file size >0 then the file is also opened
 	call FAT_new_entry
 	xorlw .0
 	bnz SD_MODE_FAT_fail
@@ -119,10 +120,10 @@ SD_MODE_FAT
 	;FAT_new_entry leaves us at the first sector of the new file in SD_addr
 
 	;//NOTE: the SD buffer is not "safe" across FAT calls, the FAT calls use 
-	;it, so allocate files then write/generate data for them
+	;it, so you must first allocate files then write/generate data for them
 
 Fill_file_loop
-	;Fill the SD buffer with some example data (M characters)
+	;Fill the SD buffer with some example data (In this case, M characters)
 	SD_load_buffer_FSR 2,0x000
 
 Fill_SD_buffer_loop
@@ -148,16 +149,39 @@ Fill_SD_buffer_loop
 	xorlw .1
 	bnz SD_MODE_FAT_fail
 
-	;/////////////////////////////////////////////////
-	;Load a directory (TESTDIR) and make a blank new file in it of zero size
+	;///////////////////////////////////////////////////////////////////
+	;Make a directory (folder1="TESTDIR") in the current directory and open it
+	LoadTable folder1
+	call FAT_load_filename_TBLPTR
 
-	;Load the root directory
-	call FAT_load_root
+	;Set the entry as a folder
+	clrf FAT_newfile_attrib
+	;Add the directory bit
+	bsf FAT_newfile_attrib,4
+
+	;No need to set the number of clusters, the driver handles that
+	
+	;Make the new directory
+	call FAT_new_entry
+	xorlw .0
+	bnz SD_MODE_FAT_fail
+
+	;We're now inside the new directory
+
+	;/////////////////////////////////////////////////
+	;Goes up one directory, back into the test directory and make
+	;a blank new file in it of zero size
+
+	;Go up a directory
+	LoadTable FAT_prev_dir
+	call FAT_load_filename_TBLPTR
+	call FAT_open_entry
+	xorlw .0
+	bnz SD_MODE_FAT_fail
 
 	;Load the subdirectory name
 	LoadTable folder1
 	call FAT_load_filename_TBLPTR
-
 	;Open the subdirectory
 	call FAT_open_entry
 	xorlw .0
@@ -180,6 +204,8 @@ Fill_SD_buffer_loop
 	xorlw .0
 	bnz SD_MODE_FAT_fail
 	
+
+	;End of demo
 
 SD_MODE_FAT_fail
 	call touch_wait_for_release	
