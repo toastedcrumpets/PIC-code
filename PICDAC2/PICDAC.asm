@@ -2,108 +2,70 @@
 	include "P18F1320.INC"
 
  PROCESSOR 18F1320
-    __CONFIG  _CONFIG1H, _IESO_OFF_1H & _FSCM_OFF_1H & _HSPLL_OSC_1H
-    __CONFIG  _CONFIG2L, _PWRT_OFF_2L & _BOR_OFF_2L & _BORV_27_2L
-    __CONFIG  _CONFIG2H, _WDT_OFF_2H & _WDTPS_32K_2H
-    __CONFIG  _CONFIG3H, _MCLRE_ON_3H
-    __CONFIG  _CONFIG4L, _DEBUG_OFF_4L & _LVP_OFF_4L & _STVR_ON_4L
+	CONFIG  OSC=HSPLL,FSCM=OFF,IESO=OFF,PWRT=OFF,BOR=OFF,WDT=OFF,MCLRE=ON,LVP=OFF
 
-    __CONFIG  _CONFIG5L, _CP0_OFF_5L & _CP1_OFF_5L
-    __CONFIG  _CONFIG5H, _CPB_OFF_5H & _CPD_OFF_5H
-    __CONFIG  _CONFIG6L, _WRT0_OFF_6L & _WRT1_OFF_6L
-    __CONFIG  _CONFIG6H, _WRTC_OFF_6H & _WRTB_OFF_6H & _WRTD_OFF_6H
-    __CONFIG  _CONFIG7L, _EBTR0_OFF_7L & _EBTR1_OFF_7L
-    __CONFIG  _CONFIG7H, _EBTRB_OFF_7H
-
- org 0x0000
+ org 0x000000
 	goto INIT
+
+ ;High priority interrupts (communication
+ org 0x000008
+	reset
+
+ ;Low priority interrupt (ticker for DAC)
+ org 0x000018
+	;Clear the flag of the timer
+	bcf INTCON,TMR0IF
+
+	;Next tick of the function clock
+	call Sine_interp_tick
+	retfie
+	
+
+	include "sine.inc"
+
 
 	#define DAC_CS LATA,1
 	#define DAC_CLK LATA,0
-	#define DAC_SDI1 LATB,2
-	#define DAC_SDI2 LATB,3
+	#define DAC_SDI1 LATB,3
+	#define DAC_SDI2 LATB,2
 	#define DAC_nLDAC LATA,4
+	include "DACSPI.inc"
 
 INIT
-	clrf TRISA
-	clrf TRISB
-	
-	;Reset data entry for the DAC
-	bsf DAC_CS
-	
-	;Make the DAC auto latch
-	bcf DAC_nLDAC
+	;Setup the pins for the DAC's
+	bcf TRISA,1
+	bcf TRISA,0
+	bcf TRISA,4
+	bcf TRISB,2
+	bcf TRISB,3
 
-	clrf DAC_BYTE_H1
-	clrf DAC_BYTE_L1
+	call DAC_init
+	call Sine_interp_init
+
+	;Setup the timer
+	;bsf T0CON,TMR0ON ;Timer on
+	;bsf T0CON,T08BIT ;8-bit mode
+	;bcf T0CON,T0CS ;Timer gets its clock internally
+	;bsf T0CON,PSA  ;Turn off prescaler
 	
-	clrf DAC_BYTE_L2
-	movlw b'00001000'
-	movwf DAC_BYTE_H2
-	;clrf DAC_BYTE_L2
+	;Set the prescaler to 1:2
+	;movlw b'11111000'
+	;andwf T0CON,F
+
+	;bsf INTCON,TMR0IE ;Enable timer interrupts
+	;bcf INTCON2,TMR0IP ;Make it low priority
+
+	;Enable the high and low priority interrupts
+	;bsf RCON,IPEN
+
+	;Enable high priority interrupts (communication)
+	;bsf INTCON,GIEH
+
+	;Disable low priority interrupts for now (DAC timing and transmission)
+	;bsf INTCON,GIEL
+
 MAIN
-	infsnz DAC_BYTE_L1,F
-	incf DAC_BYTE_H1,F
-
-	infsnz DAC_BYTE_L2,F
-	incf DAC_BYTE_H2,F
-
-	call TRANSMIT_DAC_WORD
+	call Sine_interp_tick
 	bra MAIN
-
-
-;////////////////////////////////////
- cblock
-DAC_BYTE_L1,DAC_BYTE_H1
-DAC_BYTE_L2,DAC_BYTE_H2
-DAC_OPP
- endc
-TRANSMIT_DAC_WORD
-	;Prime the clock
-	bcf DAC_CLK
-	;CS down for data send
-	bcf DAC_CS
-
-	movf DAC_BYTE_H2,W
-	andlw b'00001111'
-	iorlw b'01110000'
-	movwf DAC_OPP
-
-	movf DAC_BYTE_H1,W
-	andlw b'00001111'
-	iorlw b'01110000'
-	rcall TRANSMIT_DAC_BYTE
-
-	movff DAC_BYTE_L2,DAC_OPP
-	movf DAC_BYTE_L1,W
-	rcall TRANSMIT_DAC_BYTE
-
-	;Latch the data in	
-	bsf	DAC_CS
-	return
-
-;////////////////////////////////////
-TRANSMIT_DAC_BYTE
-	;Make the carry bit a 1
-	bsf STATUS,C
-	rlcf WREG
-DAC_loop
-	bsf	DAC_SDI1
-	bsf	DAC_SDI2
-
-	btfss STATUS,C
-	bcf	DAC_SDI1
-
-	btfss DAC_OPP,7
-	bcf	DAC_SDI2
-
-	bsf	DAC_CLK
- 	bcf	DAC_CLK
-
-	rlncf DAC_OPP
-	bcf STATUS,C
-	rlcf WREG
-	bnz	DAC_loop
-	return
 
 end

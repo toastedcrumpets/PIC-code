@@ -26,15 +26,23 @@ subfolder_lkr=
 [FILE_SUBFOLDERS]
 file_000=.
 file_001=.
+file_002=.
+file_003=.
 [GENERATED_FILES]
 file_000=no
 file_001=no
+file_002=no
+file_003=no
 [OTHER_FILES]
 file_000=no
 file_001=no
+file_002=no
+file_003=no
 [FILE_INFO]
 file_000=PICDAC.asm
 file_001=C:\Program Files\Microchip\MPASM Suite\P18F1320.INC
+file_002=sine.inc
+file_003=DACSPI.inc
 [SUITE_INFO]
 suite_guid={6B3DAA78-59C1-46DD-B6AA-DBDAE4E06484}
 suite_state=generate-absolute-code

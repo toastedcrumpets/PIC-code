@@ -41,6 +41,20 @@ INIT
 MAIN
 	infsnz DAC_BYTE_L,F
 	incf DAC_BYTE_H,F
+	infsnz DAC_BYTE_L,F
+	incf DAC_BYTE_H,F
+	infsnz DAC_BYTE_L,F
+	incf DAC_BYTE_H,F
+	infsnz DAC_BYTE_L,F
+	incf DAC_BYTE_H,F
+	infsnz DAC_BYTE_L,F
+	incf DAC_BYTE_H,F
+	infsnz DAC_BYTE_L,F
+	incf DAC_BYTE_H,F
+	infsnz DAC_BYTE_L,F
+	incf DAC_BYTE_H,F
+	infsnz DAC_BYTE_L,F
+	incf DAC_BYTE_H,F
 skipinc
 	call TRANSMIT_DAC_WORD
 	bra MAIN
