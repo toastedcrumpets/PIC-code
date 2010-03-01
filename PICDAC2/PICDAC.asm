@@ -16,12 +16,34 @@
 	;Clear the flag of the timer
 	bcf INTCON,TMR0IF
 
-	;Next tick of the function clock
-	call Sine_interp_tick
+	call sine_table
+
+	;12bit DAC, promote the 8bit val to a 12bit val
+	swapf WREG,W
+	movwf DAC_BYTE_H1
+	andlw 0xF0
+	movwf DAC_BYTE_L1
+	
+	call TRANSMIT_DAC_WORD
+
+    ;Make a frequency step. Note, the frequency step doesn't necessarily have to be
+    ;constant. E.g. it could be changed as part of a PLL algorithm.
+
+    movf    fstep_lo,W
+    addwfc   f_lo,F
+    movf    fstep_hi,W
+    addwfc   f_hi,F
+
 	retfie
 	
 
-	include "sine.inc"
+ cblock 0x00
+	f_hi,f_lo
+	fstep_lo,fstep_hi
+ endc
+
+	include "sineInterpolate.inc"
+	include "sineTable.inc"
 
 
 	#define DAC_CS LATA,1
@@ -40,32 +62,40 @@ INIT
 	bcf TRISB,3
 
 	call DAC_init
-	call Sine_interp_init
+
+	;Setup the counter
+    ;Initialize the step in frequency
+    MOVLW   b'00010000'
+    MOVWF   fstep_lo        
+    CLRF    fstep_hi
+    
+    CLRF    f_hi            ;Start off at 0 degrees
+    CLRF    f_lo
 
 	;Setup the timer
-	;bsf T0CON,TMR0ON ;Timer on
-	;bsf T0CON,T08BIT ;8-bit mode
-	;bcf T0CON,T0CS ;Timer gets its clock internally
-	;bsf T0CON,PSA  ;Turn off prescaler
+	bsf T0CON,TMR0ON ;Timer on
+	bsf T0CON,T08BIT ;8-bit mode
+	bcf T0CON,T0CS ;Timer gets its clock internally
+	bsf T0CON,PSA  ;Turn off prescaler
 	
 	;Set the prescaler to 1:2
-	;movlw b'11111000'
-	;andwf T0CON,F
+	movlw b'11111000'
+	andwf T0CON,F
 
-	;bsf INTCON,TMR0IE ;Enable timer interrupts
-	;bcf INTCON2,TMR0IP ;Make it low priority
+	bsf INTCON,TMR0IE ;Enable timer interrupts
+	bcf INTCON2,TMR0IP ;Make it low priority
 
 	;Enable the high and low priority interrupts
-	;bsf RCON,IPEN
+	bsf RCON,IPEN
 
 	;Enable high priority interrupts (communication)
-	;bsf INTCON,GIEH
+	bsf INTCON,GIEH
 
-	;Disable low priority interrupts for now (DAC timing and transmission)
-	;bsf INTCON,GIEL
+	;Enable low priority interrupts for now (DAC timing and transmission)
+	bsf INTCON,GIEL
 
 MAIN
-	call Sine_interp_tick
+
 	bra MAIN
 
 end
