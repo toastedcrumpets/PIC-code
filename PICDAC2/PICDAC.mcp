@@ -45,8 +45,8 @@ file_004=no
 file_000=PICDAC.asm
 file_001=C:\Program Files\Microchip\MPASM Suite\P18F1320.INC
 file_002=DACSPI.inc
-file_003=fullsinetable.inc
-file_004=sineInterpolate.inc
+file_003=sineInterpolate.inc
+file_004=sineTable.inc
 [SUITE_INFO]
 suite_guid={6B3DAA78-59C1-46DD-B6AA-DBDAE4E06484}
 suite_state=generate-absolute-code
