@@ -379,19 +379,11 @@ FAT_load_MBR
 	bnz FAT_failed_MBR
 	retlw .0
 
-;Error Messages
-FAT_failed_to_read_MBR_text db "Failed to read MBR",0x00
-FAT_failed_to_read_MBR
-	LoadTable FAT_failed_to_read_MBR_text
-	call blit_print_table_string
-	retlw .1
-
-FAT_failed_MBR_text db "MBR is corrupt",0x00
 FAT_failed_MBR
-	LoadTable FAT_failed_MBR_text
-	call blit_print_table_string
 	retlw .1
 
+FAT_failed_to_read_MBR
+	retlw .2
 
 ;////////////////////////////////////////////////////////
 ;Parse the MBR
@@ -430,17 +422,11 @@ FAT_parse_MBR_found_partition
 	retlw .0
 
 ;Error Messages
-FAT_parse_MBR_noFAT_txt db "No FAT Partition",0x00
 FAT_parse_MBR_noFAT
-	LoadTable FAT_parse_MBR_noFAT_txt
-	call blit_print_table_string
 	retlw .1
 
-FAT_parse_MBR_noVolID_txt db "Failed Reading VolID",0x00
 FAT_parse_MBR_noVolID
-	LoadTable FAT_parse_MBR_noVolID_txt
-	call blit_print_table_string
-	retlw .1
+	retlw .2
 
 
 ;////////////////////////////////////////////////////////
@@ -523,10 +509,7 @@ FAT_parse_VolID_power_loop_cont
 	retlw .0
 
 ;Error Messages
-FAT_parse_VolID_corrupt_txt db "Corrupt VolID",0x00
 FAT_parse_VolID_corrupt
-	LoadTable FAT_parse_VolID_corrupt_txt
-	call blit_print_table_string
 	retlw .1
 
 ;/////////////////////////////////////////////////////////////

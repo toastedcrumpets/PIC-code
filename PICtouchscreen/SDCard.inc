@@ -6,7 +6,7 @@
 
 ;The buffer of data must be 256bit aligned, 
 ;so you can only set the high ram byte
- #define SD_load_buffer_H movlw 0x08
+
 
 ;This just helps you keep out of the memory without using
 ;indirect addressing
@@ -35,7 +35,7 @@ SD_CMD1 db 0x41,0x00,0x00,0x00,0x00,0xFF
 
 ;///////////////////////////////////////////////////////
 SD_load_buffer_FSR macro a,offset
-	SD_load_buffer_H+HIGH(offset)
+	SD_load_buffer_H +HIGH(offset)
 	movwf FSR#v(a)H
 	movlw LOW(offset)
 	movwf FSR#v(a)L
@@ -54,7 +54,6 @@ SD_init
 	;//Clear the SPI clock
 	bcf SD_CLK
 
-	call Load_framebuffer
 	;Deselect the card
 	bsf SD_CS
 

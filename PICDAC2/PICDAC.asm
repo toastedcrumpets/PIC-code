@@ -7,16 +7,16 @@
  org 0x000000
 	goto INIT
 
- ;High priority interrupts (communication
+ ;High priority interrupts (communication)
  org 0x000008
-	reset
+	goto process_serial_data
+
+
 
  ;Low priority interrupt (ticker for DAC)
  org 0x000018
-	;Clear the flag of the timer
-	bcf INTCON,TMR0IF
-
-	call sine_table
+	;call sine_table
+	call sine_interp
 
 	;12bit DAC, promote the 8bit val to a 12bit val
 	swapf WREG,W
@@ -30,10 +30,14 @@
     ;constant. E.g. it could be changed as part of a PLL algorithm.
 
     movf    fstep_lo,W
-    addwfc   f_lo,F
+    addwf   f_lo,F
     movf    fstep_hi,W
     addwfc   f_hi,F
 
+	;Reset the timer
+	movlw 0xFF
+	movwf TMR0L
+	bcf INTCON,TMR0IF
 	retfie
 	
 
@@ -42,10 +46,14 @@
 	fstep_lo,fstep_hi
  endc
 
+	;//////Sine wave generators
 	include "sineInterpolate.inc"
 	include "sineTable.inc"
 
+	;//////Command processor
+	include "serialControl.inc"
 
+	;//////DAC SPI controller
 	#define DAC_CS LATA,1
 	#define DAC_CLK LATA,0
 	#define DAC_SDI1 LATB,3
@@ -62,6 +70,8 @@ INIT
 	bcf TRISB,3
 
 	call DAC_init
+
+	call serial_control_init
 
 	;Setup the counter
     ;Initialize the step in frequency
@@ -81,7 +91,7 @@ INIT
 	;Set the prescaler to 1:2
 	movlw b'11111000'
 	andwf T0CON,F
-
+	
 	bsf INTCON,TMR0IE ;Enable timer interrupts
 	bcf INTCON2,TMR0IP ;Make it low priority
 

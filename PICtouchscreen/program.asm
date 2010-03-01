@@ -34,6 +34,8 @@ w_temp
  #define SD_DI LATD,3
  #define SD_CLK LATD,4
  #define SD_DO PORTD,5
+ ;This defines the start of the 512 byte scratchpad for the SD card
+ #define SD_load_buffer_H movlw 0x08
  include "SDCard.inc"
 
  cblock
@@ -68,8 +70,8 @@ INIT
 	;Setup the touch panel
 	call touch_init
 	;Entry vector for the menu
-	;call Main_Mode_Init
-	call SD_Mode_Init
+	call Main_Mode_Init
+	;call SD_Mode_Init
 MAIN
 	call Menu_ticker
 	bra MAIN

@@ -2,17 +2,31 @@
 
 ;Get the index from the counter, and leave the sine val in W
 sine_table
-	movf f_hi,W
+	;Prime the higher table address
+	movlw 	HIGH(sine_fulltable)
+	movwf	TBLPTRH
 
-	addlw	LOW(sine_interp_table)
+	movlw 	UPPER(sine_fulltable)
+	movwf	TBLPTRU
+
+	;Determine the low byte
+	swapf f_lo,W
+	andlw b'00001111'
+	movwf TBLPTRL
+
+	swapf f_hi,W
+	andlw b'11110000'
+	iorwf TBLPTRL,W
+
+	addlw	LOW(sine_fulltable)
 	movwf	TBLPTRL
 
-	clrf TBLPTRH
-	movlw 	HIGH(sine_interp_table)
+	;These next commands do not change the carry bit
+	swapf   f_hi,W
+	andlw   b'00000011'
 	addwfc	TBLPTRH,F
 
-	clrf TBLPTRU
-	movlw 	UPPER(sine_interp_table)
+	clrf WREG
 	addwfc	TBLPTRU,F
 
 	TBLRD*
