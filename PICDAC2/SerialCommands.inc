@@ -11,6 +11,7 @@ Command_table
 
 cmd_0_output_toggle
 	;Toggle the timer interrupt
+	btg PIE1,TMR2IE 
 	btg INTCON,TMR0IE
 
 	retfie FAST

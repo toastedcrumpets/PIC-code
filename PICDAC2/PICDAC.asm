@@ -18,12 +18,11 @@
 	;call sine_table
 	call sine_interp
 
-	;12bit DAC, promote the 8bit val to a 12bit val
 	swapf WREG,W
 	movwf DAC_BYTE_H1
 	andlw 0xF0
 	movwf DAC_BYTE_L1
-	
+
 	call TRANSMIT_DAC_WORD
 
     ;Make a frequency step. Note, the frequency step doesn't necessarily have to be
@@ -34,10 +33,8 @@
     movf    fstep_hi,W
     addwfc   f_hi,F
 
-	;Reset the timer
-	movlw 0xFF
-	movwf TMR0L
-	bcf INTCON,TMR0IF
+	;Reset the timer interrupt
+	bcf PIR1,TMR2IF
 	retfie
 	
 
@@ -83,17 +80,15 @@ INIT
     CLRF    f_lo
 
 	;Setup the timer
-	bsf T0CON,TMR0ON ;Timer on
-	bsf T0CON,T08BIT ;8-bit mode
-	bcf T0CON,T0CS ;Timer gets its clock internally
-	bsf T0CON,PSA  ;Turn off prescaler
+	movlw b'00000100' ;[6:3] postscale, [2]tmr on, [1:0] prescaler
+	movwf T2CON
 	
-	;Set the prescaler to 1:2
-	movlw b'11111000'
-	andwf T0CON,F
-	
-	bsf INTCON,TMR0IE ;Enable timer interrupts
-	bcf INTCON2,TMR0IP ;Make it low priority
+	;40Mhz clock, 10Mhz tick rate, allow 250 cycles per update to give a 40kHz sampling rate
+	movlw .249
+	movwf PR2
+
+	bsf PIE1,TMR2IE ;Disable timer interrupts (DAC paused)
+	bcf IPR1,TMR2IP ;Make it low priority
 
 	;Enable the high and low priority interrupts
 	bsf RCON,IPEN
@@ -101,11 +96,14 @@ INIT
 	;Enable high priority interrupts (communication)
 	bsf INTCON,GIEH
 
-	;Enable low priority interrupts for now (DAC timing and transmission)
+	;Enable low priority interrupts for now (DAC timing)
 	bsf INTCON,GIEL
 
 MAIN
-
+	btfsc INTCON,TMR0IE
 	bra MAIN
 
+	;/DAC is paused! do anything you like
+
+	bra MAIN
 end

@@ -91,7 +91,6 @@ x1,index,product
 ;
 sine_interp
     ;Get the 4-bit index
-	
     movf    f_hi,W
     andlw   INDEX_MASK
     btfsc   f_hi,4
