@@ -3,14 +3,14 @@
 x1,index,product
  endc
 
-#define INDEX_MASK  0x0f
-#define INTERP_MASK 0xf0
+#define INDEX_MASK  0x0F
+#define INTERP_MASK 0xF0
 
 ;--------------------------------------------------------
 ;sine
 ;
 ;  The purpose of this routine is to take the sine of the
-;16-bit frequency variable f_hi:f_lo to produce a signed
+;16-bit frequency variable f_upper:f_high to produce a signed
 ;8-bit result that is within +/- 1 count of the true sine
 ;value.
 ;  Only the lower 14 bits of the frequency variable are
@@ -83,7 +83,7 @@ x1,index,product
 ;   sine = -(x2 - ((x2-x1) * interp) / 16)
 ;
 ;Input
-; f_hi:f_lo  -  16-bit frequency variable
+; f_upper:f_high  -  16-bit frequency variable
 ;Output
 ; W = int(127*sin( (f & 0x3fff) * 360 / 0x4000) )
 ;
@@ -91,9 +91,9 @@ x1,index,product
 ;
 sine_interp
     ;Get the 4-bit index
-    movf    f_hi,W
+    movf    f_upper,W
     andlw   INDEX_MASK
-    btfsc   f_hi,4
+    btfsc   f_upper,4
      sublw  .15                   ;Odd quadrants, index = 15 - index
 
 	addlw	LOW(sine_interp_table)
@@ -120,7 +120,7 @@ sine_interp
     ;
 
 	movlw	0xf0
-	andwf	f_lo,w
+	andwf	f_high,w
 	mulwf	product
 
 	movf	PRODH,w		;Round up if fractional part is > 1/2
@@ -128,11 +128,11 @@ sine_interp
 	 incf	PRODH,w
 
 
-    btfss   f_hi,4
+    btfss   f_upper,4
      addwf  x1,W
-    btfsc   f_hi,4
+    btfsc   f_upper,4
      subwf  TABLAT,w		;x2 is in the tablat register
-    btfsc   f_hi,5
+    btfsc   f_upper,5
      sublw  0
 	
     return

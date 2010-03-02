@@ -4,6 +4,13 @@
  PROCESSOR 18F1320
 	CONFIG  OSC=HSPLL,FSCM=OFF,IESO=OFF,PWRT=OFF,BOR=OFF,WDT=OFF,MCLRE=ON,LVP=OFF
 
+ ;///////////////////////////////VARIABLES
+ cblock 0x00
+	f_upper,f_high,f_low
+	fstep_upper,fstep_high,fstep_low
+ endc
+
+
  org 0x000000
 	goto INIT
 
@@ -15,34 +22,37 @@
 
  ;Low priority interrupt (ticker for DAC)
  org 0x000018
-	;call sine_table
-	call sine_interp
+	call sine_table
+	;call sine_interp
 
 	swapf WREG,W
 	movwf DAC_BYTE_H1
 	andlw 0xF0
 	movwf DAC_BYTE_L1
 
+	call sine_table
+
+	swapf WREG,W
+	movwf DAC_BYTE_H2
+	andlw 0xF0
+	movwf DAC_BYTE_L2
+
 	call TRANSMIT_DAC_WORD
 
     ;Make a frequency step. Note, the frequency step doesn't necessarily have to be
     ;constant. E.g. it could be changed as part of a PLL algorithm.
 
-    movf    fstep_lo,W
-    addwf   f_lo,F
-    movf    fstep_hi,W
-    addwfc   f_hi,F
+    movf    fstep_low,W
+    addwf  f_low,F
+    movf    fstep_high,W
+    addwfc   f_high,F
+    movf    fstep_upper,W
+    addwfc   f_upper,F
 
 	;Reset the timer interrupt
 	bcf PIR1,TMR2IF
 	retfie
 	
-
- cblock 0x00
-	f_hi,f_lo
-	fstep_lo,fstep_hi
- endc
-
 	;//////Sine wave generators
 	include "sineInterpolate.inc"
 	include "sineTable.inc"
@@ -72,15 +82,18 @@ INIT
 
 	;Setup the counter
     ;Initialize the step in frequency
-    MOVLW   b'00010000'
-    MOVWF   fstep_lo        
-    CLRF    fstep_hi
+	movlw  0x31
+	movwf  fstep_low
+    MOVLW  0x08
+    MOVWF   fstep_high     
+    CLRF    fstep_upper
     
-    CLRF    f_hi            ;Start off at 0 degrees
-    CLRF    f_lo
+	CLRF    f_low    ;Start off at 0 degrees
+    CLRF    f_upper            
+    CLRF   f_high
 
 	;Setup the timer
-	movlw b'00000100' ;[6:3] postscale, [2]tmr on, [1:0] prescaler
+	movlw b'00000100' ;[6:3] postscale (off), [2]tmr on, [1:0] prescaler (off)
 	movwf T2CON
 	
 	;40Mhz clock, 10Mhz tick rate, allow 250 cycles per update to give a 40kHz sampling rate
@@ -99,11 +112,25 @@ INIT
 	;Enable low priority interrupts for now (DAC timing)
 	bsf INTCON,GIEL
 
-MAIN
-	btfsc INTCON,TMR0IE
-	bra MAIN
+OUTPUT_LOOP
+	btfsc PIE1,TMR2IE
+	bra OUTPUT_LOOP
 
-	;/DAC is paused! do anything you like
+	;/DAC is paused! do anything you like but disable the low priority interrupts first
+	bcf INTCON,GIEL
 
-	bra MAIN
+	;Zero the DAC outputs first
+	clrf DAC_BYTE_L1
+	clrf DAC_BYTE_H1
+	clrf DAC_BYTE_L2
+	clrf DAC_BYTE_H2
+	call TRANSMIT_DAC_WORD
+	
+	;Re-enable the low priority interrupts
+	bsf INTCON,GIEL
+PAUSE_LOOP
+	btfss PIE1,TMR2IE
+	bra PAUSE_LOOP
+
+	bra OUTPUT_LOOP
 end

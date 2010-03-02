@@ -19,26 +19,27 @@ cmd_0_output_toggle
 cmd_1_freq_down
 	;Go down two steps to check for zero
 	movlw .2
-	subwf fstep_lo
+	subwf fstep_low,F
 	movlw .0
-	subwfb fstep_hi
+	subwfb fstep_high,F
+	subwfb fstep_upper,F
 	
 	btfsc STATUS,C
-	bra cmd_1_freq_down_ok
+	bra cmd_2_freq_up
 
 	;It's wrapped, just clear the registers
-	clrf fstep_lo
-	clrf fstep_hi
-
-cmd_1_freq_down_ok
-	infsnz fstep_lo
-	incf fstep_hi
-
-	retfie FAST
+	clrf fstep_low
+	clrf fstep_high
+	clrf fstep_upper
+	
+	;Now we let it continue to the increment command
 
 cmd_2_freq_up
-	movlw .1
-	addwf fstep_lo
-	movlw .0
-	addwfc fstep_hi
+	incfsz fstep_low
+	bra cmd_2_freq_up_ret
+
+	infsnz fstep_high
+	incf   fstep_upper
+
+cmd_2_freq_up_ret
 	retfie FAST

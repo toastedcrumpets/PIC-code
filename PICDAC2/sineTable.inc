@@ -10,11 +10,11 @@ sine_table
 	movwf	TBLPTRU
 
 	;Determine the low byte
-	swapf f_lo,W
+	swapf f_high,W
 	andlw b'00001111'
 	movwf TBLPTRL
 
-	swapf f_hi,W
+	swapf f_upper,W
 	andlw b'11110000'
 	iorwf TBLPTRL,W
 
@@ -22,7 +22,7 @@ sine_table
 	movwf	TBLPTRL
 
 	;These next commands do not change the carry bit
-	swapf   f_hi,W
+	swapf   f_upper,W
 	andlw   b'00000011'
 	addwfc	TBLPTRH,F
 
