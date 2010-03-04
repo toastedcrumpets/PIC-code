@@ -30,8 +30,8 @@ process_command
 
 	mullw .4
 	
-	;Now check it is valid by subtracting the number of commands plus one and branching on no carry
-	addlw -NCommandsPlusOne
+	;Now check it is valid by subtracting the number of commands plus one and branching on not negative
+	addlw -NCommands
 	bnn process_command_fail
 
 	movlw LOW(Command_table)

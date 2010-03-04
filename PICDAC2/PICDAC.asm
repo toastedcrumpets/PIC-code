@@ -80,26 +80,34 @@ INIT
 
 	call serial_control_init
 
-	;Setup the counter
-    ;Initialize the step in frequency
-	movlw  0x31
-	movwf  fstep_low
-    MOVLW  0x08
-    MOVWF   fstep_high     
-    CLRF    fstep_upper
-    
-	CLRF    f_low    ;Start off at 0 degrees
-    CLRF    f_upper            
-    CLRF   f_high
 
 	;Setup the timer
 	movlw b'00000100' ;[6:3] postscale (off), [2]tmr on, [1:0] prescaler (off)
 	movwf T2CON
 	
-	;40Mhz clock, 10Mhz tick rate, allow 250 cycles per update to give a 40kHz sampling rate
-	movlw .249
+	;40Mhz clock, 10Mhz tick rate
+	;To simplify the calculation of increment size given a freq, we use 238 steps here
+	;Sample rate is now 42016.8Hz
+	movlw .237
 	movwf PR2
+	;Now to calculate the step size for a given freq, just multiply the freqency by 100 and it will always overestimate it by 0.175874%
+	;We can then get a better approximation by subtracting the target frequency times by (0.175874)=1/5.685888, or a 8 which is a power of 2 and closer than 4
+	;The frequency can then be adjusted in the 100th's by just adding 1-100.
+	
+	;Setup the counter and step size
+    ;Initialize the step in frequency for a 20mhz wave
+	movlw  0xCD
+	movwf  fstep_low
+    MOVLW  0x07
+    MOVWF   fstep_high     
+    CLRF    fstep_upper
+	
+	;Start off at 0 degrees in phase
+	CLRF    f_low    
+    CLRF    f_upper            
+    CLRF   f_high
 
+	;////Interrupts
 	bsf PIE1,TMR2IE ;Disable timer interrupts (DAC paused)
 	bcf IPR1,TMR2IP ;Make it low priority
 

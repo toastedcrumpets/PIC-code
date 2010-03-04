@@ -15,7 +15,7 @@ char_table
 	db .3,LOW(char_data_13),HIGH(char_data_13),UPPER(char_data_13)
 	db .1,LOW(char_data_14),HIGH(char_data_14),UPPER(char_data_14)
 	db .3,LOW(char_data_15),HIGH(char_data_15),UPPER(char_data_15)
-	db .4,LOW(char_data_16),HIGH(char_data_16),UPPER(char_data_16)
+	db .3,LOW(char_data_16),HIGH(char_data_16),UPPER(char_data_16)
 	db .3,LOW(char_data_17),HIGH(char_data_17),UPPER(char_data_17)
 	db .4,LOW(char_data_18),HIGH(char_data_18),UPPER(char_data_18)
 	db .4,LOW(char_data_19),HIGH(char_data_19),UPPER(char_data_19)
@@ -72,10 +72,10 @@ char_table
 	db .3,LOW(char_data_70),HIGH(char_data_70),UPPER(char_data_70)
 	db .3,LOW(char_data_71),HIGH(char_data_71),UPPER(char_data_71)
 	db .3,LOW(char_data_72),HIGH(char_data_72),UPPER(char_data_72)
-	db .2,LOW(char_data_73),HIGH(char_data_73),UPPER(char_data_73)
+	db .1,LOW(char_data_73),HIGH(char_data_73),UPPER(char_data_73)
 	db .2,LOW(char_data_74),HIGH(char_data_74),UPPER(char_data_74)
 	db .3,LOW(char_data_75),HIGH(char_data_75),UPPER(char_data_75)
-	db .2,LOW(char_data_76),HIGH(char_data_76),UPPER(char_data_76)
+	db .1,LOW(char_data_76),HIGH(char_data_76),UPPER(char_data_76)
 	db .5,LOW(char_data_77),HIGH(char_data_77),UPPER(char_data_77)
 	db .3,LOW(char_data_78),HIGH(char_data_78),UPPER(char_data_78)
 	db .3,LOW(char_data_79),HIGH(char_data_79),UPPER(char_data_79)
@@ -103,9 +103,9 @@ char_table
 	db .5,LOW(char_data_101),HIGH(char_data_101),UPPER(char_data_101)
 	db .4,LOW(char_data_102),HIGH(char_data_102),UPPER(char_data_102)
 	db .5,LOW(char_data_103),HIGH(char_data_103),UPPER(char_data_103)
-	db .10,LOW(char_data_104),HIGH(char_data_104),UPPER(char_data_104)
-	db .11,LOW(char_data_105),HIGH(char_data_105),UPPER(char_data_105)
-	db .7,LOW(char_data_106),HIGH(char_data_106),UPPER(char_data_106)
+	db .7,LOW(char_data_104),HIGH(char_data_104),UPPER(char_data_104)
+	db .5,LOW(char_data_105),HIGH(char_data_105),UPPER(char_data_105)
+	db .5,LOW(char_data_106),HIGH(char_data_106),UPPER(char_data_106)
 	db .9,LOW(char_data_107),HIGH(char_data_107),UPPER(char_data_107)
 	db .8,LOW(char_data_108),HIGH(char_data_108),UPPER(char_data_108)
 	db .9,LOW(char_data_109),HIGH(char_data_109),UPPER(char_data_109)
@@ -143,7 +143,7 @@ char_data_14
 char_data_15
 	db b'00000110',b'00011000',b'01100000'
 char_data_16
-	db b'00111000',b'01100100',b'01001100',b'00111000'
+	db b'00111000',b'01010100',b'00111000'
 char_data_17
 	db b'00100100',b'01111100',b'00000100'
 char_data_18
@@ -243,27 +243,27 @@ char_data_64
 char_data_65
 	db b'00011000',b'00100100',b'00111000',b'00000100'
 char_data_66
-	db b'01111100',b'00100100',b'00011000'
+	db b'00111100',b'00010100',b'00001000'
 char_data_67
 	db b'00011000',b'00100100'
 char_data_68
-	db b'00011000',b'00100100',b'01111100'
+	db b'00001000',b'00010100',b'00111100'
 char_data_69
 	db b'00011000',b'00101100',b'00010100'
 char_data_70
 	db b'00010010',b'00111100',b'01010000'
 char_data_71
-	db b'00010010',b'00101010',b'00010100'
+	db b'00010000',b'00101010',b'00010100'
 char_data_72
-	db b'01111100',b'00010000',b'00011100'
+	db b'00111100',b'00010000',b'00001100'
 char_data_73
-	db b'01011000',b'00000100'
+	db b'00101100'
 char_data_74
-	db b'00010010',b'01011100'
+	db b'00001010',b'00101100'
 char_data_75
-	db b'01111100',b'00001000',b'00010100'
+	db b'00111100',b'00001000',b'00010100'
 char_data_76
-	db b'01000000',b'01111100'
+	db b'00111100'
 char_data_77
 	db b'00011100',b'00100000',b'00011100',b'00100000',b'00011100'
 char_data_78
@@ -271,15 +271,15 @@ char_data_78
 char_data_79
 	db b'00011000',b'00100100',b'00011000'
 char_data_80
-	db b'00111110',b'00101000',b'00010000'
+	db b'00111100',b'00101000',b'00010000'
 char_data_81
-	db b'00010000',b'00101000',b'00111110'
+	db b'00010000',b'00101000',b'00111100'
 char_data_82
 	db b'00011100',b'00100000',b'00010000'
 char_data_83
 	db b'00010100',b'00110100',b'00101000'
 char_data_84
-	db b'00100000',b'01111000',b'00100100'
+	db b'00010000',b'00111100',b'00010000'
 char_data_85
 	db b'00111000',b'00000100',b'00111100'
 char_data_86
@@ -303,27 +303,27 @@ char_data_94
 char_data_95
 	db b'01111100',b'00000000',b'01000100',b'01010100',b'01010100',b'01101100',b'01000100'
 char_data_96
-	db b'00001001',b'00000101',b'00000011',b'00001111'
+	db b'00100100',b'00010100',b'00001100',b'00111100'
 char_data_97
-	db b'11110000',b'11000000',b'10100000',b'10010000'
+	db b'00111100',b'00110000',b'00101000',b'00100100'
 char_data_98
-	db b'10010000',b'10100000',b'11000000',b'11110000'
+	db b'00100100',b'00101000',b'00110000',b'00111100'
 char_data_99
-	db b'00001111',b'00000011',b'00000101',b'00001001'
+	db b'00111100',b'00001100',b'00010100',b'00100100'
 char_data_100
 	db b'00010000',b'00111000',b'01010100',b'00010000'
 char_data_101
-	db b'00100000',b'01000000',b'11110000',b'01000000',b'00100000'
+	db b'00010000',b'00100000',b'01111000',b'00100000',b'00010000'
 char_data_102
 	db b'00010000',b'01010100',b'00111000',b'00010000'
 char_data_103
 	db b'00010000',b'00001000',b'00111100',b'00001000',b'00010000'
 char_data_104
-	db b'00000010',b'01111110',b'01000000',b'01111110',b'00000010',b'00011110',b'00010000',b'01010100',b'00111000',b'00010000'
+	db b'00000100',b'00111100',b'00100000',b'00111100',b'00000100',b'00111100',b'00100000'
 char_data_105
-	db b'00000000',b'00001110',b'00010100',b'00011001',b'00100001',b'01000010',b'10000100',b'00000011',b'00000001',b'00000010',b'00000100'
+	db b'00001000',b'00100100',b'00000100',b'00100100',b'00001000'
 char_data_106
-	db b'00000010',b'00111110',b'00100000',b'00111110',b'00000010',b'00111110',b'00100000'
+	db b'00010000',b'00010000',b'01101100',b'00010000',b'00010000'
 char_data_107
 	db b'00000010',b'00000100',b'00001000',b'00010000',b'00111110',b'00000100',b'00001000',b'00010000',b'00111110'
 char_data_108

@@ -5,6 +5,8 @@ FuncGen_Mode_output_str db "output",0x00
 FuncGen_Mode_FreqDOWN_str db "Freq",.135,0x00
 FuncGen_Mode_FreqUP_str db "Freq",.133,0x00
 
+FuncGen_Mode_FreqSync_str db "FreqSync",0x00
+
 FuncGen_Mode_setup
 	return
 
@@ -30,6 +32,13 @@ FuncGen_Mode_Init
 	movwf Insert_Touch_var_x
 	call Touch_Goto_Entry
 	Insert_Touch_value_N FuncGen_FreqDOWN_Handler,.3
+
+	movlw .2
+	movwf Insert_Touch_var_y
+	movlw .0
+	movwf Insert_Touch_var_x
+	call Touch_Goto_Entry
+	Insert_Touch_value_N FuncGen_FreqSync_Handler,.3
 
 	movlw .6
 	movwf Insert_Touch_var_y
@@ -98,6 +107,14 @@ FuncGen_Mode_redraw
 	call blit_box_print_table_string
 
 	call Load_framebuffer
+	movlw .2
+	call fb_goto_row
+	movlw .0
+	call fb_goto_col
+	LoadTable(FuncGen_Mode_FreqSync_str)
+	call blit_box_print_table_string
+
+	call Load_framebuffer
 	movlw .6
 	call fb_goto_row
 	movlw .101
@@ -151,6 +168,35 @@ FuncGen_FreqUP_Handler
 	;It's a command so bit9 is on
 	bsf TXSTA,TX9
 	movlw b'11010010'
+	movwf TXREG
+
+	;Make sure this isn't toggled multiple times
+	call touch_wait_for_release
+	return
+
+FuncGen_FreqSync_Handler
+	btfss PIR1,TXIF
+	bra $-.2
+	
+	;It's a command so bit9 is on
+	bsf TXSTA,TX9
+	movlw b'11000011'
+	movwf TXREG
+
+	;Load the next byte then wait for an empty transmission buffer
+	movlw 0x9A
+	btfss PIR1,TXIF
+	bra $-.2
+	movwf TXREG
+	
+	movlw 0x0F
+	btfss PIR1,TXIF
+	bra $-.2
+	movwf TXREG
+
+	movlw 0x00
+	btfss PIR1,TXIF
+	bra $-.2
 	movwf TXREG
 
 	;Make sure this isn't toggled multiple times
