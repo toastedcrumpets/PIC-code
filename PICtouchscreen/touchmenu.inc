@@ -105,20 +105,12 @@ tmp1
 do_TouchMenu
 	rcall Load_TouchMenu
 
-	movf x_pos,W
-	bcf STATUS,C
-	rrcf WREG
-	bcf STATUS,C
-	rrcf WREG
-	bcf STATUS,C
-	rrcf WREG
-	bcf STATUS,C
-	rrcf WREG
+	swapf x_pos,W
+	andlw 0x0F
 	movwf tmp1
 
-	movf y_pos,W
 	bcf STATUS,C
-	rrcf WREG
+	rrcf y_pos,W
 
 	andlw b'1110000'	
 	addwf tmp1,W

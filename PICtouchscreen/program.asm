@@ -5,12 +5,13 @@
  org 0x0000
 	goto INIT
 
- cblock
+ cblock 0x00
 w_temp
  endc
 
  include <p18f4680.inc>
  include "macros.inc"
+ include "24bitMacros.inc"
  include "divide.inc"
 
 

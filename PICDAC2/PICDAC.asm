@@ -8,6 +8,7 @@
  cblock 0x00
 	f_upper,f_high,f_low
 	fstep_upper,fstep_high,fstep_low
+	mid_DAC
  endc
 
 
@@ -22,6 +23,7 @@
 
  ;Low priority interrupt (ticker for DAC)
  org 0x000018
+	bsf mid_DAC,0
 	call sine_table
 	;call sine_interp
 
@@ -51,6 +53,7 @@
 
 	;Reset the timer interrupt
 	bcf PIR1,TMR2IF
+	clrf mid_DAC
 	retfie
 	
 	;//////Sine wave generators
@@ -86,17 +89,16 @@ INIT
 	movwf T2CON
 	
 	;40Mhz clock, 10Mhz tick rate
-	;To simplify the calculation of increment size given a freq, we use 238 steps here
-	;Sample rate is now 42016.8Hz
-	movlw .237
+	;To simplify the calculation of increment size given a freq, we use 239 steps here
+	;Sample rate is now 41841.00418
+	movlw .238
 	movwf PR2
-	;Now to calculate the step size for a given freq, just multiply the freqency by 100 and it will always overestimate it by 0.175874%
-	;We can then get a better approximation by subtracting the target frequency times by (0.175874)=1/5.685888, or a 8 which is a power of 2 and closer than 4
+	;Now to calculate the step size for a given freq, just multiply the freqency by 100.2438656
 	;The frequency can then be adjusted in the 100th's by just adding 1-100.
 	
 	;Setup the counter and step size
     ;Initialize the step in frequency for a 20mhz wave
-	movlw  0xCD
+	movlw  0xD5
 	movwf  fstep_low
     MOVLW  0x07
     MOVWF   fstep_high     
@@ -106,6 +108,9 @@ INIT
 	CLRF    f_low    
     CLRF    f_upper            
     CLRF   f_high
+
+	;Clear the mid_DAC flag that makes sure DAC commands don't overlap
+	clrf mid_DAC
 
 	;////Interrupts
 	bsf PIE1,TMR2IE ;Disable timer interrupts (DAC paused)

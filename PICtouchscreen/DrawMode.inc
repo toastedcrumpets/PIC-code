@@ -8,6 +8,16 @@ Drawing_Mode_Init
 	;Prepare the display
 	call Drawing_Mode_redraw
 
+	;Disable the standard func DAC output
+	btfss PIR1,TXIF
+	bra $-.2
+	
+	;It's a command so bit9 is on
+	;Make the DAC turn output off
+	bsf TXSTA,TX9
+	movlw b'11110000'
+	movwf TXREG
+
 	;Fill the screen with touch handlers for drawing
 	movlw LOW(Drawing_Handler)
 	movwf fill_touch_menu_vec_L
@@ -60,8 +70,30 @@ Drawing_Mode_redraw
 ;Draw Mode touch handlers
 
 ;/////////////
-;This handler draws a pixel
+;This handler draws a pixel and outputs it to the DAC
 Drawing_Handler
+
+	;It's a command so bit9 is on, cmd 4 is recv DAC
+	bsf TXSTA,TX9
+	movlw b'10110100'
+	movwf TXREG
+
+	;First nibbles are blank
+	clrf WREG
+	btfss PIR1,TXIF
+	bra $-.2
+	movwf TXREG
+
+	;Set the X and Y coords
+	btfss PIR1,TXIF
+	bra $-.2
+	movff x_pos,TXREG
+
+	btfss PIR1,TXIF
+	bra $-.2
+	movff y_pos,TXREG
+
+	;Now draw it
 	movff x_pos,pixel_x
 	bcf STATUS,C
 	rrcf pixel_x

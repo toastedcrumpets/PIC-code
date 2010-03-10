@@ -8,12 +8,14 @@ cmd_timeout
 
 ;///////////////////////////////////////////////////////////////
 ;Command table
-#define NCommands .4
+#define NCommands .6
 Command_table
 	jump(cmd_0_output_toggle)
 	jump(cmd_1_freq_down)
 	jump(cmd_2_freq_up)
 	jump(cmd_3_recv_step)
+	jump(cmd_4_recv_DAC)
+	jump(cmd_5_output_off)
 
 ;///////////////////////////////////////////////////////////////
 ;A method to wait for the next byte
@@ -36,7 +38,6 @@ command_wait_next_byte_loop
 cmd_0_output_toggle
 	;Toggle the timer interrupt
 	btg PIE1,TMR2IE 
-	btg INTCON,TMR0IE
 
 	retfie FAST
 
@@ -80,23 +81,64 @@ cmd_3_recv_step
 	retfie	
 
 	bcf PIR1,RCIF
-	movf RCREG,W
-	movwf fstep_low
+	movf RCREG,fstep_low
 
 	call command_wait_next_byte
 	TSTFSZ WREG
 	retfie	
 
 	bcf PIR1,RCIF
-	movf RCREG,W
-	movwf fstep_high
+	movff RCREG,fstep_high
 
 	call command_wait_next_byte
 	TSTFSZ WREG
 	retfie	
 
 	bcf PIR1,RCIF
-	movf RCREG,W
-	movwf fstep_upper
+	movff RCREG,fstep_upper
 
 	retfie
+
+;///////////////////////////////////
+cmd_4_recv_DAC
+	;Check the DAC isn't doing something
+	TSTFSZ mid_DAC
+	retfie
+
+	clrf DAC_BYTE_H1
+	clrf DAC_BYTE_H2
+
+	;Load the high nibbles
+	;call command_wait_next_byte
+	;TSTFSZ WREG
+	;retfie	
+
+	;bcf PIR1,RCIF
+	;movff RCREG,DAC_BYTE_H1
+	;swapf DAC_BYTE_H1,W
+	;movwf DAC_BYTE_H2
+
+	;Now load the low bytes
+	call command_wait_next_byte
+	TSTFSZ WREG
+	retfie	
+	
+	bcf PIR1,RCIF
+	movff RCREG,DAC_BYTE_L1
+
+	call command_wait_next_byte
+	TSTFSZ WREG
+	retfie	
+	
+	bcf PIR1,RCIF
+	movff RCREG,DAC_BYTE_L2
+
+	call TRANSMIT_DAC_WORD
+
+	retfie
+
+;///////////////////////////////////////////////////////////////
+cmd_5_output_off
+	;Toggle the timer interrupt off
+	bcf PIE1,TMR2IE
+	retfie FAST
