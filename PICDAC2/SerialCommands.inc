@@ -80,22 +80,22 @@ cmd_3_recv_step
 	TSTFSZ WREG
 	retfie	
 
-	bcf PIR1,RCIF
 	movf RCREG,fstep_low
+	bcf PIR1,RCIF
 
 	call command_wait_next_byte
 	TSTFSZ WREG
 	retfie	
 
-	bcf PIR1,RCIF
 	movff RCREG,fstep_high
+	bcf PIR1,RCIF
 
 	call command_wait_next_byte
 	TSTFSZ WREG
 	retfie	
 
-	bcf PIR1,RCIF
 	movff RCREG,fstep_upper
+	bcf PIR1,RCIF
 
 	retfie
 
@@ -105,36 +105,70 @@ cmd_4_recv_DAC
 	TSTFSZ mid_DAC
 	retfie
 
-	clrf DAC_BYTE_H1
-	clrf DAC_BYTE_H2
+	;Start the data transfer to the DAC
+	;Prime the clock
+	bcf DAC_CLK
+	;CS down for data send
+	bcf DAC_CS
 
-	;Load the high nibbles
-	;call command_wait_next_byte
-	;TSTFSZ WREG
-	;retfie	
+	;Now transmit 0
+	bcf	DAC_SDI1
+	bcf	DAC_SDI2
 
-	;bcf PIR1,RCIF
-	;movff RCREG,DAC_BYTE_H1
-	;swapf DAC_BYTE_H1,W
-	;movwf DAC_BYTE_H2
+	bsf	DAC_CLK
+ 	bcf	DAC_CLK
+
+	;Then 111
+	bsf	DAC_SDI1
+	bsf	DAC_SDI2
+
+	bsf	DAC_CLK
+	bcf	DAC_CLK
+	bsf	DAC_CLK
+	bcf	DAC_CLK
+	bsf	DAC_CLK
+	bcf	DAC_CLK
+
+	;Load the high nibbles, First check for data
+	movlw 0xFF
+	dcfsnz WREG
+	bra cmd_4_recv_DAC_finish	
+	btfss PIR1,RCIF
+	bra $-.6
+
+	movff RCREG,DAC_OPP
+	bcf PIR1,RCIF
+	swapf DAC_OPP,W
+
+	;And send them
+	TRANSMIT_DAC_NIBBLE
 
 	;Now load the low bytes
-	call command_wait_next_byte
-	TSTFSZ WREG
-	retfie	
+	movlw 0xFF
+	dcfsnz WREG
+	bra cmd_4_recv_DAC_finish	
+	btfss PIR1,RCIF
+	bra $-.6
 	
-	bcf PIR1,RCIF
 	movff RCREG,DAC_BYTE_L1
-
-	call command_wait_next_byte
-	TSTFSZ WREG
-	retfie	
-	
 	bcf PIR1,RCIF
-	movff RCREG,DAC_BYTE_L2
 
-	call TRANSMIT_DAC_WORD
+	movlw 0xFF
+	dcfsnz WREG
+	bra cmd_4_recv_DAC_finish	
+	btfss PIR1,RCIF
+	bra $-.6
+	
+	;Send the lower bytes
+	movff RCREG,DAC_OPP
+	bcf PIR1,RCIF
 
+	movf DAC_BYTE_L1,W
+	TRANSMIT_DAC_BYTE
+
+	;Latch the data in/end the transmission
+cmd_4_recv_DAC_finish
+	bsf	DAC_CS
 	retfie
 
 ;///////////////////////////////////////////////////////////////

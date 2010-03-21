@@ -24,7 +24,7 @@ FuncGen_Mode_setup
 
 	;115.2k serial line
 	clrf SPBRGH
-	movlw .86
+	movlw .14
 	movwf SPBRG
 
 	;//Transmit Mode On

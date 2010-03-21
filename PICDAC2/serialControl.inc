@@ -88,7 +88,8 @@ serial_control_init
 
 	;115.2 serial clock available
 	clrf SPBRGH
-	movlw .86
+	;movlw .86
+	movlw .14
 	movwf SPBRG
 
 	;//Transmit Mode On

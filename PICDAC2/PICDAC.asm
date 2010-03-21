@@ -60,8 +60,6 @@
 	include "sineInterpolate.inc"
 	include "sineTable.inc"
 
-	;//////Command processor
-	include "serialControl.inc"
 
 	;//////DAC SPI controller
 	#define DAC_CS LATA,1
@@ -70,6 +68,9 @@
 	#define DAC_SDI2 LATB,2
 	#define DAC_nLDAC LATA,4
 	include "DACSPI.inc"
+
+	;//////Command processor
+	include "serialControl.inc"
 
 INIT
 	;Setup the pins for the DAC's

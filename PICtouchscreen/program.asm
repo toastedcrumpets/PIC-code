@@ -43,6 +43,9 @@ w_temp
 sense_ctr
  endc
 
+SD_card_init_fail_1 db "Failed to init the SD card/FAT", 0x00
+SD_card_init_fail_2	db "Please cycle the power", 0x00
+
 INIT
 	;//////////////////////////////////////
 	;Establish the lines for the SD card
@@ -70,9 +73,35 @@ INIT
 	;//////////////////////////////////////
 	;Setup the touch panel
 	call touch_init
+
+	call SD_Mode_setup
+	xorlw .0
+	bz SD_init_success
+	;SD card init failed! Inform the user
+	call blank_framebuffer
+	call Load_framebuffer
+	movlw .4
+	call fb_goto_row
+	movlw .10
+	call fb_goto_col
+	LoadTable(SD_card_init_fail_1)
+	call blit_print_table_string
+
+	call Load_framebuffer
+	movlw .3
+	call fb_goto_row
+	movlw .20
+	call fb_goto_col
+	LoadTable(SD_card_init_fail_2)
+	call blit_box_print_table_string
+	
+	call transmit_framebuffer
+	bra $
+
+SD_init_success
 	;Entry vector for the menu
 	call Main_Mode_Init
-	;call SD_Mode_Init
+
 MAIN
 	call Menu_ticker
 	bra MAIN

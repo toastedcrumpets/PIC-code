@@ -2,6 +2,13 @@
 
 SD_Mode_fat_str db "FAT32",0x00
 SD_Mode_Init_Fail db "Failed SD init",0x00
+
+SD_Mode_setup
+	call FAT_init
+	TSTFSZ WREG
+	retlw .1
+	retlw .0
+
 ;//////////////////////////////////////
 SD_Mode_Init
 	;Prepare the display
@@ -11,7 +18,6 @@ SD_Mode_Init
 	;Prepare the SD card
 	call Load_framebuffer
 	LoadTable SD_Mode_Init_Fail
-	call SD_init
 	call SD_MODE_FAT
 
 	btfss STATUS,Z
@@ -74,10 +80,6 @@ folder1    db "TESTDIR    "
 ;//////////////////////////////////////
 SD_MODE_FAT
 	call SD_Mode_redraw
-	call Load_framebuffer
-	call FAT_init
-	TSTFSZ WREG
-	bra SD_MODE_FAT_fail
 
 	;Load the root directory, the FAT library remembers the current directory
 	call FAT_load_root

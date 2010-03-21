@@ -251,19 +251,18 @@ FAT_blank_rest_of_file
 ;Load a FAT partition
 FAT_init
 	call FAT_load_MBR
-	xorlw .0
-	bnz FAT_init_fail
+	TSTFSZ WREG
+	retlw .1
 
 	call FAT_parse_MBR
-	xorlw .0
-	bnz FAT_init_fail
+	TSTFSZ WREG
+	retlw .2
 
 	call FAT_parse_VolID
-	xorlw .0
-	bnz FAT_init_fail
+	TSTFSZ WREG
+	retlw .3
 
-FAT_init_fail
-	return
+	retlw .0
 
 ;////////////////////////////////////////////////////////
 ;Load the MBR
