@@ -251,6 +251,9 @@ Drawing_Handler
 	call fb_set_pixel
 	return
 
+
+;/////////////////////////////////////////////////////////////////////////
+;/////////////////////////////////////////////////////////////////////////
 DrawingFileName  db "Sketch  pbm",0x00
 PBM_magic_string db "P4\n# PICTouch Writer v0.1\n128 64\n",0x00
 
@@ -287,7 +290,12 @@ Drawing_Mode_save
 	
 ;Now begin the writing of the pixel data
 	call Load_framebuffer
-	movlw b'00000001'
+	movlw .128
+	movwf FSR0L
+	movlw .3
+	addwf FSR0H
+
+	movlw b'10000000'
 	movwf PRODH
 
 	clrf save_byte
@@ -340,22 +348,26 @@ Drawing_Mode_save_check_row
 	bnz Drawing_Mode_save_Loop
 
 	;We're at the end of a row, so rotate the bits
-	rlncf PRODH,F
+	rrncf PRODH,F
 	
-	;Check if we're at the end of a 8bit row
-	btfsc PRODH,0
-	bra Drawing_Mode_new_8bit_row
-
-	;Not at a new 8bit row, so rewind and repeat
+	;Rewind 128 bytes
 	movlw .128
 	subwf FSR0L,F
 	movlw .0
 	subwfb FSR0H,F
+
+	;Check if we're at the end of a 8bit row
+	btfss PRODH,7
 	bra Drawing_Mode_save_Loop
 
-Drawing_Mode_new_8bit_row
+	;Rewind again to get the next row
+	movlw .128
+	subwf FSR0L,F
+	movlw .0
+	subwfb FSR0H,F
+
 	;Now check if we're at the end of the frame buffer
-	movlw 0x06
+	movlw 0x01
 	xorwf FSR0H,W
 	bnz Drawing_Mode_save_Loop
 
@@ -371,7 +383,146 @@ Drawing_Mode_save_fail
 	call touch_wait_for_release
 	retlw .1
 
+
+;//////////////////////////////////////////////////////////////
+;//////////////////////////////////////////////////////////////
 Drawing_Mode_load
+	;Load the file
+	call FAT_load_root
+	LoadTable DrawingFileName
+	call FAT_load_filename_TBLPTR
+	call FAT_open_entry
+	TSTFSZ WREG
+	bra Drawing_Mode_load_fail
+	call convert_cluster_in_addr
+	call SD_read
+	TSTFSZ WREG
+	bra Drawing_Mode_load_fail
+	SD_load_buffer_FSR 2,0x000
+
+	movlw "P"
+	xorwf POSTINC2,W
+	bnz Drawing_Mode_load_fail
+	movlw "4"
+	xorwf POSTINC2,W
+	bnz Drawing_Mode_load_fail
+	movlw "\n"
+	xorwf POSTINC2,W
+	bnz Drawing_Mode_load_fail
+
+	movlw "#"
+	xorwf INDF2,W
+	bnz Drawing_Mode_load_proceed
+
+	;Eat until you hit a newline character
+	movlw "\n"
+	xorwf POSTINC2,W
+	bnz $-.4
+
+	;Now eat "128 64\n"
+	movlw "1"
+	xorwf POSTINC2,W
+	bnz Drawing_Mode_load_fail
+	movlw "2"
+	xorwf POSTINC2,W
+	bnz Drawing_Mode_load_fail
+	movlw "8"
+	xorwf POSTINC2,W
+	bnz Drawing_Mode_load_fail
+	movlw " "
+	xorwf POSTINC2,W
+	bnz Drawing_Mode_load_fail
+	movlw "6"
+	xorwf POSTINC2,W
+	bnz Drawing_Mode_load_fail
+	movlw "4"
+	xorwf POSTINC2,W
+	bnz Drawing_Mode_load_fail
+	movlw "\n"
+	xorwf POSTINC2,W
+	bnz Drawing_Mode_load_fail
+
+Drawing_Mode_load_proceed
+;Now begin the writing of the pixel data
+	call blank_framebuffer
+	call Load_framebuffer
+	movlw .128
+	movwf FSR0L
+	movlw .3
+	addwf FSR0H
+
+	movlw b'10000000'
+	movwf PRODH
+
+	movlw b'10000000'
+	movwf save_byte
+
+Drawing_Mode_load_Loop
+	;Check if the current bit is set
+	movf save_byte,W
+	andwf INDF2,W
+	bz $+.4
+	movf PRODH,W
+	iorwf POSTINC0,F
+
+	rrncf save_byte,F
+	btfss save_byte,7
+	bra Drawing_Mode_load_Loop
+	
+	movf POSTINC2,W
+
+	;Now check if the SD buffer is empty
+	SD_load_buffer_H + 2
+	xorwf FSR2H,W
+	bnz Drawing_Mode_load_check_row
+
+	;It is empty so write and get the next sector
+	call FAT_next_sector
+	xorlw .0
+	bnz Drawing_Mode_load_fail
+
+	call SD_read
+	xorlw .0
+	bnz Drawing_Mode_load_fail
+
+	SD_load_buffer_FSR 2,0x000
+
+Drawing_Mode_load_check_row
+	;Now we check if we're at the end of a row
+	movlw b'01111111'
+	andwf FSR0L,W
+	bnz Drawing_Mode_load_Loop
+
+	;We're at the end of a row, so rotate the bits
+	rrncf PRODH,F
+	
+	;Rewind 128 bytes
+	movlw .128
+	subwf FSR0L,F
+	movlw .0
+	subwfb FSR0H,F
+
+	;Check if we're at the end of a 8bit row
+	btfss PRODH,7
+	bra Drawing_Mode_load_Loop
+
+	;Rewind again to get the next row
+	movlw .128
+	subwf FSR0L,F
+	movlw .0
+	subwfb FSR0H,F
+
+	;Now check if we're at the end of the frame buffer
+	movlw 0x01
+	xorwf FSR0H,W
+	bnz Drawing_Mode_load_Loop
+
+;	;The end! update the display
+	call transmit_framebuffer
 
 	call touch_wait_for_release
-	return
+	retlw .0
+
+Drawing_Mode_load_fail
+	call touch_wait_for_release
+	retlw .1
