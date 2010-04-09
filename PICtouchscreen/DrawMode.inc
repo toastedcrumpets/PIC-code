@@ -254,7 +254,7 @@ Drawing_Handler
 
 ;/////////////////////////////////////////////////////////////////////////
 ;/////////////////////////////////////////////////////////////////////////
-DrawingFileName  db "SKETCH  PBM",0x00
+DrawingFileName  db "Sketch  pbm",0x00
 PBM_magic_string db "P4\n# PICTouch Writer v0.1\n128 64\n",0x00
 
  cblock
@@ -267,9 +267,7 @@ Drawing_Mode_save
 	
 	;Delete the file if it is already there
 	LoadTable DrawingFileName
-	call FAT_load_filename_TBLPTR
 	call FAT_delete_entry
-
 
 	;Load the new file name into entryname
 	LoadTable DrawingFileName
