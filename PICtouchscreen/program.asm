@@ -1,4 +1,4 @@
- PROCESSOR 18F4680
+ PROCESSOR 18F4620
  CONFIG  OSC=HSPLL,FCMEN=OFF,IESO=OFF,PWRT=OFF,BOREN=OFF,BORV=2,WDT=OFF,WDTPS=32768,MCLRE=ON,LPT1OSC=OFF,PBADEN=OFF,XINST=OFF,LVP=OFF,STVREN=ON
  ;OSC=IRCIO67
 
@@ -43,8 +43,9 @@ w_temp
 sense_ctr
  endc
 
-SD_card_init_fail_1 db "Failed to init the SD card/FAT", 0x00
-SD_card_init_fail_2	db "Please cycle the power", 0x00
+FAT_init_fail db "Failed to init the filesystem", 0x00
+SD_init_fail_1 db "Failed to init the SD card", 0x00
+SD_init_fail_2	db "Please cycle the power", 0x00
 
 INIT
 	;//////////////////////////////////////
@@ -52,7 +53,7 @@ INIT
 	clrf TRISD
 	;Data input line
 	bsf TRISD,5
-	call SD_init
+
 	;//////////////////////////////////////
 	;Setup the display
 	;Set portB to output for the LCD
@@ -74,17 +75,21 @@ INIT
 	;Setup the touch panel
 	call touch_init
 
-	call SD_Mode_setup
-	xorlw .0
+
+	;//////////////////////////////////////
+	;All of the SD card stuff
+	call SD_init
+	xorlw 0x00
 	bz SD_init_success
-	;SD card init failed! Inform the user
+
+	;SD init failed! Inform the user
 	call blank_framebuffer
 	call Load_framebuffer
 	movlw .4
 	call fb_goto_row
 	movlw .10
 	call fb_goto_col
-	LoadTable(SD_card_init_fail_1)
+	LoadTable(SD_init_fail_1)
 	call blit_print_table_string
 
 	call Load_framebuffer
@@ -92,13 +97,38 @@ INIT
 	call fb_goto_row
 	movlw .20
 	call fb_goto_col
-	LoadTable(SD_card_init_fail_2)
+	LoadTable(SD_init_fail_2)
 	call blit_box_print_table_string
 	
 	call transmit_framebuffer
 	bra $
 
-SD_init_success
+SD_init_success	
+	call SD_Mode_setup
+	xorlw .0
+	bz FAT_init_success
+	;FAT init failed! Inform the user
+	call blank_framebuffer
+	call Load_framebuffer
+	movlw .4
+	call fb_goto_row
+	movlw .10
+	call fb_goto_col
+	LoadTable(FAT_init_fail)
+	call blit_print_table_string
+
+	call Load_framebuffer
+	movlw .3
+	call fb_goto_row
+	movlw .20
+	call fb_goto_col
+	LoadTable(SD_init_fail_2)
+	call blit_box_print_table_string
+	
+	call transmit_framebuffer
+	bra $
+
+FAT_init_success
 	;Entry vector for the menu
 	call Main_Mode_Init
 
