@@ -282,8 +282,7 @@ W_to_Dec_LCD
 B2BLCD_mask
  endc
 Byte_to_Binary_LCD
-	movlw b'10000000'
-	movwf B2BLCD_mask
+
 
 Byte_to_Binary_LCD_LOOP
 	movf BIN_L,W
