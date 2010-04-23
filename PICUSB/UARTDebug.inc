@@ -33,19 +33,30 @@ UART_transmit_esc_char
 	rcall UART_transmit_char
 	return
 
-UART_clear_screen 
+UART_clear_screen
+	movff WREG,UART_W_tmp
 	rcall UART_transmit_esc_char
 	movlw "2" ;Clear screen code
 	rcall UART_transmit_char
 	movlw "J" ;.................
 	rcall UART_transmit_char
+	movff UART_W_tmp,WREG
 	return
 
 UART_cursor_home
+	movff WREG,UART_W_tmp
 	rcall UART_transmit_esc_char
 	movlw "H" ;Clear screen code
 	rcall UART_transmit_char
+	movff UART_W_tmp,WREG
 	return
+
+UART_endl macro
+	movff WREG,UART_W_tmp
+	movlw "\n"
+	rcall UART_transmit_char
+	movff UART_W_tmp,WREG
+	endm
 
 UART_print_string_helper
 	TBLRD*+	

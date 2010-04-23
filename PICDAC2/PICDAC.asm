@@ -106,9 +106,9 @@ INIT
     CLRF    fstep_upper
 	
 	;Start off at 0 degrees in phase
-	CLRF    f_low    
-    CLRF    f_upper            
-    CLRF   f_high
+	CLRF  f_low    
+    CLRF  f_upper            
+    CLRF  f_high
 
 	;Clear the mid_DAC flag that makes sure DAC commands don't overlap
 	clrf mid_DAC
