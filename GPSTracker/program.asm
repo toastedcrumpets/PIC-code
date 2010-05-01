@@ -26,8 +26,7 @@ LEDTMRH,LEDTMRL
 
  ;High priority interrupts (communication)
  org 0x000008
-	movff RCREG,WREG
-	
+	call NMEA_data_rec
 	retfie FAST
 
 
@@ -54,10 +53,15 @@ SET_LED_FLASH_RATE macro _prescaler, _count
 	movwf	LEDTMRH
 	movlw	LOW(0xffff-_count)
 	movwf	LEDTMRL
+
+	bsf PIE2,TMR3IE
 	endm
 
+ ;Looking for a fix
  #define LED_FLASH_0.5hz SET_LED_FLASH_RATE b'10111101', .31250
+ ;SD card error
  #define LED_FLASH_5hz   SET_LED_FLASH_RATE b'10111101', .3125
+ ;FAT error
  #define LED_FLASH_20hz   SET_LED_FLASH_RATE b'10111101', .781
 
 logfile db "GPSLOG  TXT"
@@ -100,12 +104,12 @@ init
 	bsf INTCON,GIEL
 
 	;//////////////////LED
-	LED_FLASH_0.5hz
-
 	;Set the priority to low
 	bcf IPR2,TMR3IP
-	;Enable the LED timer
-	bsf PIE2,TMR3IE
+	;Disable the LED timer
+	bcf PIE2,TMR3IE
+	;Set the LED on for boot
+	bsf LED
 
 	;/////////////////SD card
 	;Set the port directions
@@ -132,7 +136,7 @@ init_filesystem
 
 	LoadTable logfile
 	call FAT_load_filename_TBLPTR
-
+	LoadTable logfile
 	call FAT_delete_entry
 	;Dont care if it succeded or not, the file should be gone
 
@@ -141,7 +145,7 @@ init_filesystem
 	;Set the entry as a file
 	clrf FAT_newfile_attrib
 
-	movlw .2
+	movlw .1
 	movwf FAT_newfile_size
 
 	call FAT_new_entry
@@ -151,6 +155,8 @@ init_filesystem
 init_UART
 	call NMEA_init
 
+	;Send the LED into finding a fix flash
+	LED_FLASH_0.5hz
 main
 	bra main
 

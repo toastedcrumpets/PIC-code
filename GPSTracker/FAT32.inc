@@ -1199,30 +1199,35 @@ FAT_get_blank_FAT_chain_nextsec
 ;
 ;Changes SD_addr, FSR1, WREG, PRODH
 FAT_get_owner_cluster
-	;The MS 17Bits of the cluster are in SD_addr, shifted left by one
-	;and the last 7 are in (FSR1 - .0x0800)/4
+	;There are 2^7=128 entries per sector of FAT
+	;Therefore 24-7=17bits of the cluster address are stored in
+	;SD_ADDR (the current fat sector we're looking at)
+
+	;The MS 17Bits of the cluster are in SD_addr
+	;and the last 7 are in (FSR1 - SD_load_buffer_H)/4
 
 	;Restore SD_addr to the upper 17bits of the cluster address
 	sub_24bit SD_addr, fat_begin_lba
 
-	;No need to do the minus 0x08 from FSR1, just keep only the LSB and it's the same
 	;Blank the lower two bits
 	movlw b'11111100'
 	andwf FSR1L,W
-	rrncf WREG
-	rrncf WREG
-	;Now the 6 LSB bits of the cluster number is stored in WREG	
+	movwf PRODH
+	rrncf PRODH,F
+	rrncf PRODH,F
+	;Now the 6 LSB bits of the cluster number is stored in PRODH
 
-	;Bit 6 is bit 1 of FSR1H
-	btfsc FSR1H,0
-	bsf WREG,6
+	;Bit 6 is bit 1 of FSR1H, but first we have to subtract the offset!
+	SD_load_buffer_H
+	subwf FSR1H,W
+
+	;Now check if the last bit is set
+	btfsc WREG,0
+	bsf PRODH,6
 	
 	;Bit7 is bit 0 of SD_addr
 	btfsc SD_addr+0,0
-	bsf WREG,7
-
-	;Save this byte
-	movwf PRODH
+	bsf PRODH,7
 	
 	;Rotate SD_addr right to get rid of bit 7 of the cluster address
 	div2_24bit SD_addr

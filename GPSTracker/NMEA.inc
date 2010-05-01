@@ -44,8 +44,6 @@ NMEA_init
 	clrf NMEA_status
 	clrf NMEA_status_2
 	call NMEA_reset_recv
-	clrf NMEA_Waypoint_Name
-	clrf NMEA_Waypoint_Name+.8
 	;Switch on interrupts for USART
 	bsf PIE1,RCIE
 	bsf IPR1,RCIP ;High priority
@@ -95,6 +93,7 @@ NMEA_sentence_checksum
 NMEA_recv_checksum_H
 NMEA_recv_checksum_L
  endc
+
 NMEA_data_rec
 	;Read the data
 	movff RCREG,NMEA_byte_rec
@@ -190,7 +189,6 @@ NMEA_data_rec_checksum_low_recv
 	;We made it! a genuine NMEA sentence recvd
 	bcf NMEA_RecvEnable
 	bsf NMEA_valid
-	call NMEA_parse_APB
 	call NMEA_parse_RMC
 	call NMEA_reset_recv
 	return
@@ -299,89 +297,6 @@ NMEA_parse_decfield_BCD_to_16bit
 	call NMEA_comma_skip
 	call NMEA_comma_skip
 	retlw .1
-
-;******************************************************
-;APB waypoint parser check
-;
- cblock
-NMEA_Waypoint_Name:9
-NMEA_Bearing_H,NMEA_Bearing_L
-NMEA_Heading_H,NMEA_Heading_L
-NMEA_APB_tmp_var
- endc
-
-;The header to look for
-NMEA_APB_HDR db "GPAPB",0x00
-
-NMEA_parse_APB
-	;Load the example header in the table pointer	
-	LoadTable NMEA_APB_HDR
-	call NMEA_parse_header_check
-
-	;Check the header matched
-	btfss STATUS,Z
-	return
-
-	;Header matched, navigate to the waypoint name
-	movlw .10
-    movwf NMEA_APB_tmp_var
-
-	;Set that new data is available
-	bsf NMEA_new_waypt_data_flag
-	;Loop over comma seperated fields
-NMEA_parse_APB_LOOP_1
-	call NMEA_comma_skip
-	decfsz NMEA_APB_tmp_var
-	bra NMEA_parse_APB_LOOP_1
-
-	;Load the waypoint name in the second indirect register
-	movlw LOW(NMEA_Waypoint_Name)
-	movwf FSR2L
-	movlw HIGH(NMEA_Waypoint_Name)
-	movwf FSR2H
-
-	;Now copy the waypoint name to the INDR2 until you hit a comma
-NMEA_parse_APB_LOOP_2
-	movf POSTINC1,W
-	movwf NMEA_APB_tmp_var
-	sublw ','
-	bz NMEA_parse_APB_LOOP_2_end
-	movff NMEA_APB_tmp_var,POSTINC2
-	bra NMEA_parse_APB_LOOP_2
-
-	;Add a null to terminate the waypoint name
-NMEA_parse_APB_LOOP_2_end
-	movlw 0x00
-	movwf POSTINC2
-	;Now we have the waypoint name
-	bsf NMEA_waypt_obtained
-
-	;Now check the bearing exists, we're already passed the seperating comma
-	bcf NMEA_waypt_bearing_valid
-	call NMEA_parse_decfield
-	sublw .0
-	btfss STATUS,Z
-	bsf NMEA_waypt_bearing_valid
-
-	movff NUMLO,NMEA_Bearing_L
-	movff NUMHI,NMEA_Bearing_H
-
-	call NMEA_comma_skip
-	;Now check if there is a heading field
-NMEA_parse_APB_heading_check
-	bcf NMEA_waypt_heading_valid
-
-	;Returns 0 in w if the parse failed
-	call NMEA_parse_decfield
-	sublw .0
-	btfss STATUS,Z
-	bsf NMEA_waypt_heading_valid
-
-	movff NUMLO,NMEA_Heading_L
-	movff NUMHI,NMEA_Heading_H
-	
-NMEA_parse_APB_return
-	return
 
 
 ;******************************************************
