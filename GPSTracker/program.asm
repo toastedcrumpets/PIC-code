@@ -1,10 +1,13 @@
+ include <p18f14k50.inc>
+
 ;Main Program entry point
  org 0x00
 	goto init
 
  cblock 0x00
-LEDTMRH,LEDTMRL
+LEDTMRH,LEDTMRL,LEDTMRSCALER
  endc
+
 
  ;GPS pins
  #define GPS_RXA    PORTC,2
@@ -14,8 +17,9 @@ LEDTMRH,LEDTMRL
  #define GPS_GPIO1  PORTB,6
  #define GPS_GPIO6  PORTC,1
 
- ;LEDs
+ ;LEDs and buttons
  #define LED    PORTA,5
+ #define BUTTON PORTC,3
 
  ;SD Card
  #define SD_CS PORTC,5
@@ -26,27 +30,34 @@ LEDTMRH,LEDTMRL
 
  ;High priority interrupts (communication)
  org 0x000008
-	call NMEA_data_rec
+	call SD_write_char
 	retfie FAST
 
 
- ;Low priority interrupt (ticker for DAC)
+ ;Low priority interrupt (LED ticker)
+ ;Divides the tick rate by 8 before applying it to the LED
  org 0x000018
-	btg LED
-	bcf PIR2,TMR3IF
 	movff LEDTMRH,TMR3H
 	movff LEDTMRL,TMR3L
+
+	bcf PIR2,TMR3IF
+	movlw b'00000111'
+	andwf LEDTMRSCALER,F
+
+	dcfsnz LEDTMRSCALER,F
+	btg LED
+
 	retfie
 
- include <p18f14k50.inc>
  include "macros.inc"
  include "SDCard.inc"
  include "24bitMacros.inc"
  include "FAT32.inc"
- include "NMEA.inc"
+; include "NMEA.inc"
 
-SET_LED_FLASH_RATE macro _prescaler, _count
-	movlw	_prescaler
+;Delays are on timer0, so the LED timer must be on TMR3
+SET_LED_FLASH_RATE macro _count
+	movlw	b'10110001'
 	movwf	T3CON
 
 	movlw	HIGH(0xffff-_count)
@@ -57,12 +68,28 @@ SET_LED_FLASH_RATE macro _prescaler, _count
 	bsf PIE2,TMR3IE
 	endm
 
+ ;#define OSC_SPEED .1000000
+ ;#define BRGVAL .50
+
+ #define OSC_SPEED .16000000
+ ;4800 baud
+ #define BRGVAL .833
+ ;57.6K
+ ;#define BRGVAL .68
+
+ #define INSTR_SPEED (OSC_SPEED/.4)
+ ;The 128 comes from the software divider (/8) and the hardware divider (/8)
+ #define TMR3_SPEED (INSTR_SPEED/.64)
+
+ ;Each interrupt is one half of a cycle
  ;Looking for a fix
- #define LED_FLASH_0.5hz SET_LED_FLASH_RATE b'10111101', .31250
+ #define LED_FLASH_0.5hz SET_LED_FLASH_RATE (TMR3_SPEED)
  ;SD card error
- #define LED_FLASH_5hz   SET_LED_FLASH_RATE b'10111101', .3125
+ #define LED_FLASH_5hz   SET_LED_FLASH_RATE (TMR3_SPEED/.10)
  ;FAT error
- #define LED_FLASH_20hz   SET_LED_FLASH_RATE b'10111101', .781
+ #define LED_FLASH_20hz  SET_LED_FLASH_RATE (TMR3_SPEED/.40)
+
+ include "SDWriter.inc"
 
 logfile db "GPSLOG  TXT"
 
@@ -72,7 +99,7 @@ init
 	bcf 0x12+GPS_GPIO6
 	bcf GPS_GPIO6
 
-	;Make this high straight away
+	;Make this an input straight away
 	bsf 0x12+GPS_GPIO1
 
 	;//////////Analogue inputs disabled
@@ -83,17 +110,24 @@ init
 	bcf GPS_ON_OFF
 	bcf 0x12+GPS_ON_OFF
 
-	;Setup the serial line, high for idle state
-	bcf 0x12+GPS_RXA
-	bsf GPS_RXA
-
 	;Set the TRIS's for the inputs 
 	bsf 0x12+GPS_OnePPS
 	bsf 0x12+GPS_TXA
 
+	;And for the button
+	bcf 0x12+BUTTON
+	
 	;/////////////////LED
 	bcf 0x12+LED
 	bcf LED
+
+	;///Setup the oscillator
+	movlw b'01110000'
+	movwf OSCCON
+
+	;//Let the Oscillator stabilise
+	btfss OSCCON,IOFS
+	bra $-.2
 
 	;/////////////////Interrupts
 	;Enable interrupt priorities
@@ -110,7 +144,7 @@ init
 	bcf PIE2,TMR3IE
 	;Set the LED on for boot
 	bsf LED
-
+	
 	;/////////////////SD card
 	;Set the port directions
 	bcf 0x12+SD_DI
@@ -132,14 +166,16 @@ init_filesystem
 	TSTFSZ WREG
 	bra SD_fail
 	
+open_logfile
 	call FAT_load_root
 
 	LoadTable logfile
 	call FAT_load_filename_TBLPTR
-	LoadTable logfile
-	call FAT_delete_entry
-	;Dont care if it succeded or not, the file should be gone
+	call FAT_open_entry
+	xorlw .0
+	bz Log_File_Open
 
+	;File Failed to open, must create it I guess
 	LoadTable logfile
 	call FAT_load_filename_TBLPTR
 	;Set the entry as a file
@@ -152,12 +188,56 @@ init_filesystem
 	xorlw .0
 	bnz FAT_fail
 
-init_UART
-	call NMEA_init
+	;Now open the logfile and blank the first sector
+	LoadTable logfile
+	call FAT_load_filename_TBLPTR
+	call FAT_open_entry
+	xorlw .0
+	bnz SD_fail
 
+	call convert_cluster_in_addr
+	SD_load_buffer_FSR 2,0x000
+	call SD_blank_buffer
+	
+	call SD_write
+	xorlw .0
+	bnz SD_fail
+
+	bra open_logfile
+
+Log_File_Open
+	;So now we have a file open and we should load it and seek to its end
+	call convert_cluster_in_addr
+	call SD_init_seek
+
+init_UART
+	;Establish the UART
+	bsf TRISB,5
+	bcf TRISB,7
+	;Switch on interrupts for USART
+	bsf PIE1,RCIE
+	bsf IPR1,RCIP ;High priority
+	bsf TXSTA,TXEN
+	bcf TXSTA,SYNC
+	bsf RCSTA,SPEN
+
+	;Fixed Baud
+	bsf TXSTA,BRGH
+	bsf BAUDCON,BRG16
+
+
+	movlw HIGH(BRGVAL)
+	movwf SPBRGH
+	movlw LOW(BRGVAL)
+	movwf SPBRG
+
+	bsf  RCSTA,CREN
+
+	bcf LED
 	;Send the LED into finding a fix flash
-	LED_FLASH_0.5hz
+	;LED_FLASH_0.5hz
 main
+	;TRY NOT TO DO ANYTHING HERE, OR FIX THE TIMER INTERRUPT (IT CORRUPTS WREG&STATUS)
 	bra main
 
 SD_fail

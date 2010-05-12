@@ -30,6 +30,8 @@ file_002=.
 file_003=.
 file_004=.
 file_005=.
+file_006=.
+file_007=.
 [GENERATED_FILES]
 file_000=no
 file_001=no
@@ -37,6 +39,8 @@ file_002=no
 file_003=no
 file_004=no
 file_005=no
+file_006=no
+file_007=no
 [OTHER_FILES]
 file_000=no
 file_001=no
@@ -44,6 +48,8 @@ file_002=no
 file_003=no
 file_004=no
 file_005=no
+file_006=no
+file_007=no
 [FILE_INFO]
 file_000=program.asm
 file_001=FAT32.inc
@@ -51,6 +57,8 @@ file_002=SDCard.inc
 file_003=24bitMacros.inc
 file_004=macros.inc
 file_005=Y:\GPSTracker\NMEA.inc
+file_006=Y:\GPSTracker\SDWriter.inc
+file_007=C:\Program Files\Microchip\MPASM Suite\P18F14K50.INC
 [SUITE_INFO]
 suite_guid={6B3DAA78-59C1-46DD-B6AA-DBDAE4E06484}
 suite_state=generate-absolute-code

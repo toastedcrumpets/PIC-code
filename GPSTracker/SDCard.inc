@@ -71,6 +71,19 @@ SD_load_buffer_end_FSR macro a
 	clrf FSR#v(a)L
 	endm
 
+SD_blank_buffer
+	SD_load_buffer_FSR 2,0x000
+
+SD_blank_buffer_loop
+	movlw .0
+	movwf POSTINC2
+
+	SD_load_buffer_H + .2
+	xorwf FSR2H,W
+	bnz	SD_blank_buffer_loop
+
+	return
+
 SD_blank_toggles
 	rcall SD_blank_toggles_byte
 	rcall SD_blank_toggles_byte
