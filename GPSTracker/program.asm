@@ -10,22 +10,23 @@ LEDTMRH,LEDTMRL,LEDTMRSCALER
 
 
  ;GPS pins
- #define GPS_RXA    PORTC,2
+ #define GPS_RXA    PORTB,7
  #define GPS_TXA    PORTB,5
  #define GPS_ON_OFF PORTC,0
- #define GPS_OnePPS PORTB,4
- #define GPS_GPIO1  PORTB,6
+ ;Following pin is NC
+ ;#define GPS_OnePPS PORTB,4
+ #define GPS_GPIO1  PORTB,4
  #define GPS_GPIO6  PORTC,1
 
- ;LEDs and buttons
- #define LED    PORTA,5
- #define BUTTON PORTC,3
+ ;LEDs
+ #define LED    PORTA,5 ;Blue LED
+ #define LED2   PORTA,4 ;Green LED
 
  ;SD Card
- #define SD_CS PORTC,5
- #define SD_DI PORTC,4
- #define SD_CLK PORTC,6
- #define SD_DO PORTC,7
+ #define SD_CS PORTC,7
+ #define SD_DI PORTC,6
+ #define SD_CLK PORTC,3
+ #define SD_DO PORTC,4
  #define SD_load_buffer_H movlw 0x01
 
  ;High priority interrupts (communication)
@@ -111,16 +112,13 @@ init
 	bcf 0x12+GPS_ON_OFF
 
 	;Set the TRIS's for the inputs 
-	bsf 0x12+GPS_OnePPS
 	bsf 0x12+GPS_TXA
-
-	;And for the button
-	bcf 0x12+BUTTON
 	
-	;/////////////////LED
+	;/////////////////LED's Init
 	bcf 0x12+LED
 	bcf LED
-
+	bcf 0x12+LED2
+	bcf LED2
 	;///Setup the oscillator
 	movlw b'01110000'
 	movwf OSCCON
@@ -142,14 +140,12 @@ init
 	bcf IPR2,TMR3IP
 	;Disable the LED timer
 	bcf PIE2,TMR3IE
-	;Set the LED on for boot
-	bsf LED
-	
+
 	;/////////////////SD card
 	;Set the port directions
 	bcf 0x12+SD_DI
 	bcf 0x12+SD_CLK
-	bsf 0x12+SD_DO
+	bsf 0x12+SD_DO 
 	bcf 0x12+SD_CS
 
 	call SD_init
@@ -234,14 +230,15 @@ init_UART
 	bsf  RCSTA,CREN
 
 	bcf LED
-	;Send the LED into finding a fix flash
-	;LED_FLASH_0.5hz
+
+	bsf LED2
 main
 	;TRY NOT TO DO ANYTHING HERE, OR FIX THE TIMER INTERRUPT (IT CORRUPTS WREG&STATUS)
 	bra main
 
 SD_fail
 	LED_FLASH_5hz
+	bsf LED2
 	bra $
 
 FAT_fail

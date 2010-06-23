@@ -96,6 +96,7 @@ SD_blank_toggles
 	rcall SD_blank_toggles_byte
 	rcall SD_blank_toggles_byte
 	rcall SD_blank_toggles_byte
+
 	goto SD_blank_toggles_byte
 
 SD_blank_toggles_byte
@@ -110,7 +111,6 @@ SD_init
 	;Default values for the SD modes
 	bcf SD_ver2.0
 	bcf SD_HC
-
 
 	;Deselect the card
 	bsf SD_CS
@@ -127,7 +127,6 @@ SD_init
 	call SD_Send_Cmd
 
 	call SD_Recv_R1
-	clrf SPI_timeout_block
 	;Check if it was successful
 	xorlw 0x01
 	btfss STATUS,Z
