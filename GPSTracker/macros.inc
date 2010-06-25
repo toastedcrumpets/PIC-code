@@ -2,7 +2,7 @@
 
 
  cblock
-L_tmp,H_tmp,U_tmp,tmpvar
+L_tmp,H_tmp,U_tmp
  endc
 
 ;Sets up the table ptr for a fixed address

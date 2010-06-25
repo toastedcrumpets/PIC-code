@@ -32,45 +32,19 @@ NMEA_status_2
 #define NMEA_new_fix_data_flag NMEA_status_2,2
 
 ;**************************************************
-;Initialises the UART and the NMEA parser
+;Initialises the NMEA parser
 NMEA_init
-	;Establish the UART
-	bsf ADCON1,5
-	bsf ADCON1,6
-	bsf TRISB,4
-	bsf TRISB,1
-	
 	;Remove all settings
 	clrf NMEA_status
 	clrf NMEA_status_2
 	call NMEA_reset_recv
-	;Switch on interrupts for USART
-	bsf PIE1,RCIE
-	bsf IPR1,RCIP ;High priority
-
-	bcf TXSTA,TXEN
-	bcf TXSTA,SYNC
-	bsf RCSTA,SPEN
-
-	;Fixed Baud
-	bsf TXSTA,BRGH
-	bsf BAUDCON,BRG16
-
- #define BRGVAL .416
-
-	movlw HIGH(BRGVAL)
-	movwf SPBRGH
-	movlw LOW(BRGVAL)
-	movwf SPBRG
-
-	bsf  RCSTA,CREN
 	return
 
 ;**************************************************
 ;Enables the parser for reception again
 NMEA_reset_recv
 	clrf Sentence_Bytes_Rec
-	;Clear the lower 4 bytes
+	;Clear the lower 4 bits
 	movlw b'11110000'
 	andwf NMEA_status,f
 	clrf NMEA_sentence_checksum
@@ -172,7 +146,7 @@ NMEA_data_rec_checksum_low_recv
 	addlw 0xF9
 	sublw 0x39
 	;Now check if the first checkbyte is right
-	subwf NMEA_recv_checksum_H
+	subwf NMEA_recv_checksum_H,w
 	bnz	NMEA_reset_recv
 
 	;Load the lower nibble
@@ -183,14 +157,18 @@ NMEA_data_rec_checksum_low_recv
 	addlw 0xF9
 	sublw 0x39
 	;Now check if the second checkbyte is right
-	subwf NMEA_recv_checksum_L
+	subwf NMEA_recv_checksum_L,w
 	bnz	NMEA_reset_recv
 	
 	;We made it! a genuine NMEA sentence recvd
-	bcf NMEA_RecvEnable
-	bsf NMEA_valid
-	call NMEA_parse_RMC
-	call NMEA_reset_recv
+	btg LED2 ;Toggle the green LED to indicate a string was recvd
+	bcf NMEA_RecvEnable ;Stop recieving any more sentences
+	bsf NMEA_valid ;Set that we have a valid sentence
+	call NMEA_parse_RMC ;Check the contents of the sentence
+
+	;btfss NMEA_fix_valid ;If we don't have a valid fix, reset the loop
+	;call NMEA_reset_recv
+
 	return
 
 ;******************************************************
@@ -346,11 +324,16 @@ NMEA_parse_RMC_LOOP_1_end
 	;Now we have the time
 
 	;Now check the fix is valid
+	
+	bcf LED ;Not valid, turn off light
+
 	movf POSTINC1,W 
 	sublw 'A'
 	btfss STATUS,Z
 	return
 
+	bsf LED ; Actually is valid, leave light on!
+	
 	;Skip the following comma
 	movf POSTINC1,W
 	
@@ -401,6 +384,4 @@ NMEA_parse_RMC_LOOP_3_end
 	bsf NMEA_fix_valid
 
 	bsf NMEA_new_fix_data_flag
-	return
-
 	return

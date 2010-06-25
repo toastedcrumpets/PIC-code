@@ -2,7 +2,7 @@
 MagicCookie={0b13fe8c-dfe0-40eb-8900-6712719559a7}
 Version=1.0
 [File000]
-Location=Y:\GPSTRACKER\program.o
+Location=Y:\GPSTracker\program.o
 Folder=Intermediary
 DeviceName=PIC18LF14K50
 LanguageToolSuiteID={6B3DAA78-59C1-46DD-B6AA-DBDAE4E06484}
@@ -15,7 +15,7 @@ ToolArgsString=
 TraceCmdString=
 DebugOptions=
 [File001]
-Location=Y:\GPSTRACKER\program.err
+Location=Y:\GPSTracker\program.err
 Folder=Intermediary
 DeviceName=PIC18LF14K50
 LanguageToolSuiteID={6B3DAA78-59C1-46DD-B6AA-DBDAE4E06484}
@@ -28,7 +28,7 @@ ToolArgsString=
 TraceCmdString=
 DebugOptions=
 [File002]
-Location=Y:\GPSTRACKER\program.hex
+Location=Y:\GPSTracker\program.hex
 Folder=Output
 DeviceName=PIC18LF14K50
 LanguageToolSuiteID={6B3DAA78-59C1-46DD-B6AA-DBDAE4E06484}
@@ -41,7 +41,7 @@ ToolArgsString=
 TraceCmdString=
 DebugOptions=
 [File003]
-Location=Y:\GPSTRACKER\program.lst
+Location=Y:\GPSTracker\program.lst
 Folder=Output
 DeviceName=PIC18LF14K50
 LanguageToolSuiteID={6B3DAA78-59C1-46DD-B6AA-DBDAE4E06484}
@@ -54,7 +54,7 @@ ToolArgsString=
 TraceCmdString=
 DebugOptions=
 [File004]
-Location=Y:\GPSTRACKER\program.cof
+Location=Y:\GPSTracker\program.cof
 Folder=Output
 DeviceName=PIC18LF14K50
 LanguageToolSuiteID={6B3DAA78-59C1-46DD-B6AA-DBDAE4E06484}

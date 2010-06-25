@@ -869,7 +869,7 @@ FAT_get_blank_entry_EOD_EOC
 	retlw .0
 
 FAT_get_blank_entry_EODir
-	;//FAT_temp_addr holds the last sector of the fat table, which we're to add a cluster to.
+	;//FAT_temp_addr holds the last sector of the table, which we're to add a cluster to.
 	;//Get a blank entry
 	call FAT_get_blank_FAT
 	TSTFSZ WREG
@@ -1424,3 +1424,50 @@ FAT_new_entry_name_loop
 	movwf POSTINC2
 
 	return
+
+FAT_grow_file
+	;//FAT_temp_addr holds the last sector of the entry which we're to add an entry to
+	;//Get a blank entry
+	call FAT_get_blank_FAT
+	TSTFSZ WREG
+	retlw .5
+
+	;//Terminate the FAT chain
+	call FAT_terminate_FAT_entry
+	TSTFSZ WREG
+	retlw .6
+	
+	;//Get the sector (FSR1 is set by FAT_terminate_FAT_entry)
+	call FAT_get_owner_cluster
+
+	;/Save it
+	cp_24bit SD_addr,FAT_temp_addr2
+
+	;Now write the new cluster to this entry
+	;Find the cluster FAT entry
+	cp_24bit FAT_temp_addr,SD_addr
+	decf sectors_per_cluster,W 
+	sub_w_24bit SD_addr
+
+	;Get the FAT entry
+	call convert_lba_in_addr
+	call FAT_get_FAT
+	call SD_read
+	TSTFSZ WREG
+	retlw .6
+	
+	movff FAT_temp_addr2+0,POSTINC1
+	movff FAT_temp_addr2+1,POSTINC1
+	movff FAT_temp_addr2+2,POSTINC1
+
+	movlw .0
+	movwf POSTINC1
+
+	call FAT_update_FAT
+	TSTFSZ WREG
+	retlw .6
+
+	;Restore the original location
+	cp_24bit FAT_temp_addr,SD_addr
+
+	retlw .0

@@ -5,7 +5,7 @@
 	goto init
 
  cblock 0x00
-LEDTMRH,LEDTMRL,LEDTMRSCALER
+LEDTMRH,LEDTMRL,LEDTMRSCALER, FILE_L, FILE_H, NMEA_chars_written
  endc
 
 
@@ -31,7 +31,7 @@ LEDTMRH,LEDTMRL,LEDTMRSCALER
 
  ;High priority interrupts (communication)
  org 0x000008
-	call SD_write_char
+	call NMEA_data_rec
 	retfie FAST
 
 
@@ -54,7 +54,7 @@ LEDTMRH,LEDTMRL,LEDTMRSCALER
  include "SDCard.inc"
  include "24bitMacros.inc"
  include "FAT32.inc"
-; include "NMEA.inc"
+ include "NMEA.inc"
 
 ;Delays are on timer0, so the LED timer must be on TMR3
 SET_LED_FLASH_RATE macro _count
@@ -68,9 +68,6 @@ SET_LED_FLASH_RATE macro _count
 
 	bsf PIE2,TMR3IE
 	endm
-
- ;#define OSC_SPEED .1000000
- ;#define BRGVAL .50
 
  #define OSC_SPEED .16000000
  ;4800 baud
@@ -127,6 +124,10 @@ init
 	btfss OSCCON,IOFS
 	bra $-.2
 
+	;///////////////PORT SLEW RATE CONTROL (Reduce high freq noise)
+	movlw b'00000111'
+	movwf SLRCON
+
 	;/////////////////Interrupts
 	;Enable interrupt priorities
 	bsf RCON,IPEN
@@ -153,6 +154,11 @@ init
 	bz init_filesystem
 
 	;Try again
+	call SD_init
+	xorlw 0x00
+	bz init_filesystem
+
+	;One last time
 	call SD_init
 	TSTFSZ WREG
 	bra SD_fail
@@ -207,6 +213,9 @@ Log_File_Open
 	call SD_init_seek
 
 init_UART
+	;Ready the NMEA recieve enable 
+	call NMEA_init
+
 	;Establish the UART
 	bsf TRISB,5
 	bcf TRISB,7
@@ -221,7 +230,6 @@ init_UART
 	bsf TXSTA,BRGH
 	bsf BAUDCON,BRG16
 
-
 	movlw HIGH(BRGVAL)
 	movwf SPBRGH
 	movlw LOW(BRGVAL)
@@ -230,15 +238,72 @@ init_UART
 	bsf  RCSTA,CREN
 
 	bcf LED
-
 	bsf LED2
+	
+main_restart
+	bsf NMEA_RecvEnable
+	call NMEA_reset_recv
+	bcf NMEA_new_fix_data_flag
 main
-	;TRY NOT TO DO ANYTHING HERE, OR FIX THE TIMER INTERRUPT (IT CORRUPTS WREG&STATUS)
+	;Here, we try to write any recieved fix to the SD card.
+	btfsc NMEA_RecvEnable
 	bra main
+
+	btfss NMEA_new_fix_data_flag
+	bra main_restart
+
+	;We have a valid fix! write it to the SD card
+	clrf NMEA_chars_written
+sentance_loop
+	;save the SD buffer location
+	movff FSR0L, FILE_L
+	movff FSR0H, FILE_H
+
+	movlw LOW(NMEA_sentence)
+	movwf FSR0L
+	movlw HIGH(NMEA_sentence)
+	movwf FSR0H
+
+	movf NMEA_chars_written,w
+	movf PLUSW0,W
+	incf NMEA_chars_written,f
+
+	movff FILE_L,FSR0L
+	movff FILE_H,FSR0H
+
+	call SD_write_char
+	TSTFSZ WREG
+	bra FAT_fail
+
+	decfsz Sentence_Bytes_Rec
+	bra sentance_loop
+
+	;Write the checksum
+	movlw '*'
+	call SD_write_char
+	TSTFSZ WREG
+	bra FAT_fail
+
+	movf NMEA_recv_checksum_H,w
+	call SD_write_char
+	TSTFSZ WREG
+	bra FAT_fail
+
+	movf NMEA_recv_checksum_L,w
+	call SD_write_char
+	TSTFSZ WREG
+	bra FAT_fail
+
+	;Write a newline
+	movlw '\n'
+	call SD_write_char
+	TSTFSZ WREG
+	bra FAT_fail
+
+	bra main_restart
 
 SD_fail
 	LED_FLASH_5hz
-	bsf LED2
 	bra $
 
 FAT_fail
