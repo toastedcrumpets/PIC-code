@@ -56,9 +56,12 @@ LCD_PrintTableLine macro
 	call W_2HEX_to_LCD
 	endm
 
+ cblock
+w_temp_delay
+ endc
 ;Delay generation macros
 generate_delay_code macro _prescaler, _count
-	movwf w_temp
+	movwf w_temp_delay
 	movlw	_prescaler	
 	movwf	T0CON		
 	movlw	_count	
@@ -66,7 +69,7 @@ generate_delay_code macro _prescaler, _count
 	bcf	INTCON,TMR0IF	
 	btfss	INTCON,TMR0IF
 	bra	$-.2
-	movf w_temp,w
+	movf w_temp_delay,w
 	return
 	endm
 
@@ -74,9 +77,9 @@ generate_delay_code macro _prescaler, _count
 #define TMR0SPEED (INSTR_SPEED/.256)
 
 ;Delay code generators
-delay_40ms generate_delay_code b'11000111', -(((TMR0SPEED * .4) / .100)+.1)
-delay_2ms  generate_delay_code b'11000111', -(((TMR0SPEED * .2) / .1000)+.1)
-delay_30us generate_delay_code b'11000111', -(((TMR0SPEED * .3) / .10000)+.1)
+delay_16ms generate_delay_code b'11000111', -(((TMR0SPEED * .16) / .1000) +.1)
+delay_2ms  generate_delay_code b'11000111', -(((TMR0SPEED * .2)  / .1000) +.1)
+delay_30us generate_delay_code b'11000111', -(((TMR0SPEED * .3)  / .10000)+.1)
 
 ;****************************************************************
 ;Initialisation tables for the LCD
@@ -269,14 +272,9 @@ W_1HEX_to_LCD				;Interpretiert das untere Nibble als eine HEX stelle->LCD
 
 ;************************************************************************
 ;************************************************************************
-; Convert 2 byte value in FSR0 to a decimal value on the screen
-FSR16_to_LCD
-	movf	POSTINC0,W
-	movwf	BIN_L
-	movf	POSTINC0,W
-	movwf	BIN_H
+; Convert 2 byte value in BIN_L and BIN_H to a decimal value on the screen
+BINLH_to_LCD
 	call	BIN_to_BCD
-	
 	movf	R0,W
 	call	W_1HEX_to_LCD
 	movf	R1,W
