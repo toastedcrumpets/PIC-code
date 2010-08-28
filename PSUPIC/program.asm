@@ -22,6 +22,7 @@ OldButtonState
 OldAmpLimitState
 VoltReading:2
 AmpReading:2
+WattReading:4
  endc
 
  #define ErrorState FLAGS,0
@@ -222,6 +223,13 @@ init
 	movlw b'10100110' ;[7]right justified,[5:3] ACQT=8 TAD, [2:0] ADCS=Fosc/64
 	movwf ADCON2
 
+	;Set the vref of the adc to FVR
+	bsf ADCON1,3
+	bcf ADCON1,2
+
+	movlw b'10110000' ;4.096v voltage reference
+	movwf REFCON0
+
 	;//Let the Oscillator stabilise
 	btfss OSCCON,IOFS
 	bra $-.2
@@ -284,6 +292,7 @@ FAKE_RA3_IOC
 ;;;;;;;;;;;;;;;;LCD Redraw Function;;;;;;;;;;;;;;;;;;;;;;
 Line_1a  db "V  ",0x0
 Line_1b  db "A",0x0
+Line_2  db "W",0x0
 Line_3a db "EFuse:",0x0
 Line_3b1 db "   Blown!",0x0
 Line_3b2 db "   Normal"0x0
@@ -315,7 +324,112 @@ REDRAW_LCD
 
 	LCDPrintString Line_1b
 
-	;LCDPrintString Line_2
+	;Calculate the wattage
+	movf VoltReading+0,w
+	mulwf AmpReading+0
+
+	movff PRODH,WattReading+1
+	movff PRODL,WattReading+0
+
+	movf VoltReading+1,w
+	mulwf AmpReading+1
+	movff PRODH,WattReading+3
+	movff PRODL,WattReading+2
+
+	;Now the cross bits
+	movf VoltReading+0,w
+	mulwf AmpReading+1
+	movf PRODL,w
+	addwf WattReading+1,f
+	movf PRODH,w
+	addwfc WattReading+2,f
+	clrf WREG
+	addwfc WattReading+3,f
+
+	movf VoltReading+1,w
+	mulwf AmpReading+0
+	movf PRODL,w
+	addwf WattReading+1,f
+	movf PRODH,w
+	addwfc WattReading+2,f
+	clrf WREG
+	addwfc WattReading+3,f
+
+	;Now we have centi-V times centi Amps or 10^-4 A
+	;We have 5 digits to display, and up to 300 W, so we would like centi-Watts
+	;We must divide by 100
+
+	movff WattReading+0,ADC_AVG+0
+	movff WattReading+1,ADC_AVG+1
+	movff WattReading+2,ADC_AVG+2
+
+	;Shift right 3 times
+	bcf STATUS,C
+	rrcf WattReading+2,f
+	rrcf WattReading+1,f
+	rrcf WattReading+0,f
+	bcf STATUS,C
+	rrcf WattReading+2,f
+	rrcf WattReading+1,f
+	rrcf WattReading+0,f
+	bcf STATUS,C
+	rrcf WattReading+2,f
+	rrcf WattReading+1,f
+	rrcf WattReading+0,f
+
+	;Add Temporary
+	movf 	ADC_AVG+0,w
+	addwf	WattReading+0,f
+	movf 	ADC_AVG+1,w
+	addwfc	WattReading+1,f
+	movf 	ADC_AVG+2,w
+	addwfc	WattReading+2,f
+
+	;Shift right 2 times
+	bcf STATUS,C
+	rrcf WattReading+2,f
+	rrcf WattReading+1,f
+	rrcf WattReading+0,f
+	bcf STATUS,C
+	rrcf WattReading+2,f
+	rrcf WattReading+1,f
+	rrcf WattReading+0,f
+
+	;Add Temporary
+	movf 	ADC_AVG+0,w
+	addwf	WattReading+0,f
+	movf 	ADC_AVG+1,w
+	addwfc	WattReading+1,f
+	movf 	ADC_AVG+2,w
+	addwfc	WattReading+2,f
+
+	;shift right 7 times
+	rlcf WattReading+0,f
+	rlcf WattReading+1,f
+	rlcf WattReading+2,f
+
+	movff WattReading+1,WattReading+0
+	movff WattReading+2,WattReading+1
+	;movff WattReading+3,WattReading+2
+
+	;Now write it on the screen
+	call LCD_line_2
+
+	movff WattReading,BIN_L
+	movff WattReading+1,BIN_H
+
+	call	BIN_to_BCD
+	movf	R0,W
+	call	W_1HEX_to_LCD
+	movf	R1,W
+	call	W_2HEX_to_LCD
+	movlw   '.'
+	call    LCD_data_send
+	movf	R2,W
+	call	W_2HEX_to_LCD
+
+
+	LCDPrintString Line_2
 
 	call LCD_line_3
 	LCDPrintString Line_3a
@@ -365,46 +479,6 @@ ADC_FULL_READ
 	clrf ADC_AVG+.1
 	clrf ADC_AVG+.2
 
-	;Set the vref of the adc to FVR
-	bsf ADCON1,3
-	bcf ADCON1,2
-
-ADC_SCALE_FIND
-	movlw b'10010000' ;1.024v voltage reference
-	movwf REFCON0
-	;Wait for FVR voltage to stabilize
-ADC_SCALE_FIND_1_stable
-	btfss REFCON0,FVR1ST
-	bra ADC_SCALE_FIND_1_stable
-	;Now check if we're in the upper quarter of the scale
-	rcall ADC_READ
-	btfss ADRESH,1
-	bra ADC_FULL_READ_LOOP
-	btfss ADRESH,0
-	bra ADC_FULL_READ_LOOP
-	
-	movlw b'10100000' ;2.048v voltage reference
-	movwf REFCON0
-	;Wait for FVR voltage to stabilize
-ADC_SCALE_FIND_2_stable
-	btfss REFCON0,FVR1ST
-	bra ADC_SCALE_FIND_1_stable
-	;Now check if we're in the upper half of the scale
-	rcall ADC_READ
-	btfss ADRESH,1
-	bra ADC_FULL_READ_LOOP
-	btfss ADRESH,0
-	bra ADC_FULL_READ_LOOP
-
-	movlw b'10110000' ;4.096v voltage reference
-	movwf REFCON0
-	;Wait for FVR voltage to stabilize
-ADC_SCALE_FIND_3_stable
-	btfss REFCON0,FVR1ST
-	bra ADC_SCALE_FIND_1_stable
-
-	;Just use this scale
-
 ADC_FULL_READ_LOOP
 	rcall ADC_READ
 	add_16bit_to_24bit ADRESL,ADC_AVG
@@ -412,17 +486,6 @@ ADC_FULL_READ_LOOP
 	bra ADC_FULL_READ_LOOP
 
 	;Now multiply depending on the voltage reference used
-	btfss REFCON0,5 ;If set we need to multiply at least once
-	bra ADC_FULL_READ_END
-
-	bcf STATUS,C
-	rlcf ADC_AVG,f
-	rlcf ADC_AVG+.1,f
-	rlcf ADC_AVG+.2,f
-
-	btfss REFCON0,4 ;Now check if we're on the 4v scale and must multiply again
-	bra ADC_FULL_READ_END
-
 	bcf STATUS,C
 	rlcf ADC_AVG,f
 	rlcf ADC_AVG+.1,f
@@ -464,46 +527,34 @@ Volt_Read
 	movff ADC_AVG+0, VoltReading+0
 	movff ADC_AVG+1, VoltReading+1
 
-	;Shift right 5 times
-	swapf	VoltReading+0, w
-	andlw	0x0F
-	movwf	VoltReading+0
-	swapf	VoltReading+1, w
-	movwf	VoltReading+1
-	andlw	0xF0
-	xorwf	VoltReading+1, f
-	iorwf	VoltReading+0, f
-	bcf 	STATUS,C
-	rrcf	VoltReading+1, f
-	rrcf	VoltReading+0, f
+	;Now scale the result to the calibration curve V=0.049 + 0.02014 * ADC_AVG
 
-	;Negate the value
-	comf 	VoltReading+0,f	
-	comf 	VoltReading+1,f	
-	infsnz  VoltReading+0,f
-	incf    VoltReading+1,f	
-
-	;Add original value
+	;shift right 6 times
+	bcf STATUS,C
+	rlcf	VoltReading+0, f
+	rlcf	VoltReading+1, f
+	bcf STATUS,C
+	rlcf	VoltReading+0, f
+	rlcf	VoltReading+1, f
+	movff VoltReading+1,VoltReading+0
+	clrf VoltReading+1
+	
+	;Shift temporary left 1 once
+	bcf STATUS,C
+	rlcf	ADC_AVG+0, f
+	rlcf	ADC_AVG+1, f
+	
+	;Add together (2 + 1/64) = 2.015625 (error = 0.0806%)
 	movf 	ADC_AVG+0,w
 	addwf	VoltReading+0,f
 	movf 	ADC_AVG+1,w
 	addwfc	VoltReading+1,f
 
-	;Rotate right again
-	bcf 	STATUS,C
-	rrcf	VoltReading+1, f
-	rrcf	VoltReading+0, f
-
-	;Add temporary again
-	movf 	ADC_AVG+0,w
-	addwf	VoltReading+0,f
-	movf 	ADC_AVG+1,w
-	addwfc	VoltReading+1,f
-
-	;Rotate right again
-	bcf 	STATUS,C
-	rrcf	VoltReading+1, f
-	rrcf	VoltReading+0, f
+	;Now add the offset of ~50mv (again, no real point here)
+	;movlw .1
+	;addwf VoltReading+0,f
+	;clrf WREG
+	;addwfc VoltReading+1,f
 
 	movff VoltReading,BIN_L
 	movff VoltReading+1,BIN_H
@@ -531,30 +582,74 @@ Amp_Read
 	movff ADC_AVG+0, AmpReading+0
 	movff ADC_AVG+1, AmpReading+1
 
-	;AmpReading is our temporary
+	;Shift right once
+	bcf STATUS,C
+	rrcf	AmpReading+1, f
+	rrcf	AmpReading+0, f
 
-	;shift accumulator right 6 times
-	rlcf AmpReading+0
-	rlcf AmpReading+1
-	rlcf AmpReading+0
-	rlcf AmpReading+1
-	movff AmpReading+1,AmpReading+0
-	clrf AmpReading+1
-	
-	;Now add the temporary
+	;Add together
 	movf 	ADC_AVG+0,w
 	addwf	AmpReading+0,f
 	movf 	ADC_AVG+1,w
 	addwfc	AmpReading+1,f
 
-	;shift right 2 times
+	;Shift right three times
+	rrcf	AmpReading+1, f
+	rrcf	AmpReading+0, f
 	bcf STATUS,C
-	rrcf AmpReading+1
-	rrcf AmpReading+0
+	rrcf	AmpReading+1, f
+	rrcf	AmpReading+0, f
+	bcf STATUS,C
+	rrcf	AmpReading+1, f
+	rrcf	AmpReading+0, f
+
+	;Subtract temporary
+	movf 	ADC_AVG+0,w
+	subwf	AmpReading+0,f
+	movf 	ADC_AVG+1,w
+	subwfb	AmpReading+1,f
 	
+
+	;Shift right three times
+	rlcf    AmpReading+1, w
+	rrcf	AmpReading+1, f
+	rrcf	AmpReading+0, f
+	rlcf    AmpReading+1, w
+	rrcf	AmpReading+1, f
+	rrcf	AmpReading+0, f
+	rlcf    AmpReading+1, w
+	rrcf	AmpReading+1, f
+	rrcf	AmpReading+0, f
+
+	;Add temporary
+	movf 	ADC_AVG+0,w
+	addwf	AmpReading+0,f
+	movf 	ADC_AVG+1,w
+	addwfc	AmpReading+1,f
+	
+	;shift right twice
 	bcf STATUS,C
-	rrcf AmpReading+1
-	rrcf AmpReading+0
+	rrcf	AmpReading+1, f
+	rrcf	AmpReading+0, f
+	bcf STATUS,C
+	rrcf	AmpReading+1, f
+	rrcf	AmpReading+0, f
+
+	;Add temporary
+	movf 	ADC_AVG+0,w
+	addwf	AmpReading+0,f
+	movf 	ADC_AVG+1,w
+	addwfc	AmpReading+1,f
+
+	;shift right once
+	rrcf	AmpReading+1, f
+	rrcf	AmpReading+0, f
+
+	;Add the offset of 10 mA (no real need to add it, it's a little misleading!
+	;movlw .1
+	;addwf AmpReading+0,f
+	;clrf WREG
+	;addwfc AmpReading+1,f
 
 	movff AmpReading,BIN_L
 	movff AmpReading+1,BIN_H
