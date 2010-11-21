@@ -105,15 +105,16 @@ SD_blank_toggles_byte
 
 ;///////////////////////////////////////////////////
 SD_init
+	;Deselect the card
+	bsf SD_CS
+
 	;//Clear the SPI clock
-	bcf SD_CLK
+	bsf SD_CLK
+	bsf SD_DI
 
 	;Default values for the SD modes
 	bcf SD_ver2.0
 	bcf SD_HC
-
-	;Deselect the card
-	bsf SD_CS
 
 	;Send some toggles to wake the card up (it needs alot!)
 	call SD_blank_toggles
@@ -347,17 +348,19 @@ SD_tranceive
 	;blank the recv buffer SD_SPI_recv
 	clrf SD_SPI_recv
 SD_tranceive_loop
-	;Rising edge
-	bsf	SD_CLK
+	;Falling edge
+	bcf	SD_CLK
 
 	;Set the line state
 	bsf	SD_DI
 	btfss STATUS,C
 	bcf	SD_DI
-
-	;Falling edge
- 	bcf	SD_CLK
-
+	nop 
+	nop
+	;Rising edge
+ 	bsf	SD_CLK
+	nop
+	nop
 	;Read the data and write the
 	btfsc SD_DO
 	bsf SD_SPI_recv,7
@@ -366,7 +369,6 @@ SD_tranceive_loop
 	bcf STATUS,C
 	rlcf WREG
 	bnz	SD_tranceive_loop
-
 	movf SD_SPI_recv,W
 	return
 
