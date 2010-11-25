@@ -37,17 +37,19 @@ INIT
 	;Initialise the SD_card 
 	call SD_init
 	xorlw 0x00
-	bz init_filesystem //Jump to fat init on success
+	bz init_filesystem ;Jump to fat init on success
 
 	;Try again
 	call SD_init
 	xorlw 0x00
-	bz init_filesystem //Jump to fat init on success
+	bz init_filesystem ;Jump to fat init on success
 
 	;Try again
 	call SD_init
 	xorlw 0x00
-	bnz SD_MODE_FAT_fail //Fail if the third time fails
+	bz init_filesystem
+
+	goto SD_MODE_FAT_fail ;Fail if the third time fails
 
 init_filesystem
 	;You must check WREG for non-zero values indicating failure of the FAT command.

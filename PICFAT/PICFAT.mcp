@@ -40,8 +40,8 @@ file_002=no
 file_003=no
 [FILE_INFO]
 file_000=picfat.asm
-file_001=PICtouchscreen\FAT32.inc
-file_002=PICtouchscreen\SDCard.inc
+file_001=Y:\GPSTracker\FAT32.inc
+file_002=SDCard.inc
 file_003=macros.inc
 [SUITE_INFO]
 suite_guid={6B3DAA78-59C1-46DD-B6AA-DBDAE4E06484}
