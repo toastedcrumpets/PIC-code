@@ -1,0 +1,8 @@
+project	: requirements
+          <threading>multi
+	: default-build release
+	: build-dir build
+	;
+
+lib libusb :  : <name>usb-1.0 ;
+exe usbview : libusb usbview.cpp ;
