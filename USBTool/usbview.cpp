@@ -26,6 +26,9 @@ public:
   { libusb_free_config_descriptor(_desc); }
 
   size_t getInterfaceCount() const { return _desc->bNumInterfaces; }
+  
+  const libusb_interface getInterface(size_t i)
+  { return _desc->interface[i]; }
 
 private:  
   friend class USBDevice;
@@ -132,11 +135,27 @@ int main(int argc, char *argv[])
 		<< "\n Product ID " << desc.getProductID()
 		<< "\n Configurations " << desc.getConfigCount();
 
-      for (size_t i(0); i < desc.getConfigCount(); ++i)
+      for (size_t c(0); c < desc.getConfigCount(); ++c)
 	{
-	  USBConfigDescriptor cdesc = iPtr->getConfigDescriptor(i);
-	  std::cout << "\n  Interfaces " << cdesc.getInterfaceCount()
-	    ;
+	  USBConfigDescriptor cdesc = iPtr->getConfigDescriptor(c);
+	  std::cout << "\n  Interfaces " << cdesc.getInterfaceCount();
+
+	  for (size_t i(0); i < cdesc.getInterfaceCount(); ++i)
+	    {
+	      std::cout << "\n   No. of alternate settings " 
+			<< cdesc.getInterface(i).num_altsetting;
+	      for (size_t a(0); a < (size_t)cdesc.getInterface(i).num_altsetting; ++a)
+		{
+		  std::cout << "\n    Interface Number:" 
+			    << (int)cdesc.getInterface(i).altsetting[a].bInterfaceNumber
+			    << "\n    Endpoints:" 
+			    << (int)cdesc.getInterface(i).altsetting[a].bNumEndpoints;
+		  
+		  for (size_t e(0); e < (size_t)cdesc.getInterface(i).altsetting[a].bNumEndpoints; ++e)
+		    std::cout << "\n     DescriptorType: " << (int)cdesc.getInterface(i).altsetting[a].endpoint[e].bDescriptorType
+			      << "\n     EP Address: " << (int)cdesc.getInterface(i).altsetting[a].endpoint[e].bDescriptorType ;
+		}
+	    }
 	}
 
       std::cout << "\n";
