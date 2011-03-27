@@ -6,3 +6,4 @@ project	: requirements
 
 lib libusb :  : <name>usb-1.0 ;
 exe usbview : libusb usbview.cpp ;
+exe usbcontrol : libusb usbcontrol.cpp ;

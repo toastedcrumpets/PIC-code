@@ -59,6 +59,8 @@ public:
     return *this;
   }
 
+  operator bool() const {return _dev != NULL; }
+
   ~USBDevice() { if (_dev != NULL) libusb_unref_device(_dev); }
 
   //Get data
@@ -96,6 +98,9 @@ class USBDeviceHandle
 public:
   USBDeviceHandle(const USBDevice& dev)
   {
+    if (!dev)
+      throw std::runtime_error("Invalid device passed to USBDeviceHandle Constructor");
+
     if (libusb_open(dev._dev, &_devHandle))
       throw std::runtime_error("Failed to open the device");
   }
@@ -138,6 +143,12 @@ public:
     _claimedInterfaces.push_back(interface);
   }
 
+  void setConfiguration(int config)
+  {
+    if (libusb_set_configuration(_devHandle, config))
+      throw std::runtime_error("Failed to set configuration");
+  }
+
   uint16_t getLanguageCode(size_t i=0)
   {
     std::vector<unsigned char> data = getStringDescriptorRaw(0, 0);
@@ -167,7 +178,19 @@ public:
     return retval;
   }
 
+  int syncBulkTransfer(unsigned char endpoint, std::vector<unsigned char>& data,
+		       unsigned int timeout = 0)
+  {
+    int bytesTransfered;
+    if (libusb_bulk_transfer(_devHandle, endpoint, &data[0], data.size(), 
+			     &bytesTransfered, timeout))
+      throw std::runtime_error("Synchronous bulk transfer failed");
+    return bytesTransfered;
+  }
+
 private:
+  //Cannot copy device handles!
+  USBDeviceHandle(const USBDeviceHandle& dev);
 
   std::vector<unsigned char> getStringDescriptorRaw(uint8_t desc_index, uint16_t lang_index)
   {

@@ -27,8 +27,6 @@ FAT_temp_var
 FAT_temp_var2
 FAT_newfile_size
 FAT_newfile_attrib
-
-
  endc
 
  #define FAT_is_ARCHIVE current_entry_attrib,5
