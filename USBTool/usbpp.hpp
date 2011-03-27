@@ -10,6 +10,9 @@ public:
   uint8_t getDeviceClass() const { return _desc.bDeviceClass; }
   uint16_t getVendorID() const { return _desc.idVendor; }
   uint16_t getProductID() const { return _desc.idProduct; }
+  uint8_t getManufacturerStrIdx() const { return _desc.iManufacturer; }
+  uint8_t getProductStrIdx() const { return _desc.iProduct; }
+  uint8_t getSerialStrIdx() const { return _desc.iSerialNumber; }
 private:  
   friend class USBDevice;
 
@@ -75,6 +78,12 @@ public:
     return desc;
   }
 
+  uint8_t getBusNumber() const
+  { return libusb_get_bus_number(_dev); }
+
+  uint8_t getDeviceAddress() const
+  { return libusb_get_device_address(_dev); }
+  
 private:
   friend class USBDeviceHandle;
   libusb_device* _dev;
@@ -85,7 +94,7 @@ private:
 class USBDeviceHandle
 {
 public:
-  USBDeviceHandle(USBDevice& dev)
+  USBDeviceHandle(const USBDevice& dev)
   {
     if (libusb_open(dev._dev, &_devHandle))
       throw std::runtime_error("Failed to open the device");
@@ -129,7 +138,65 @@ public:
     _claimedInterfaces.push_back(interface);
   }
 
+  uint16_t getLanguageCode(size_t i=0)
+  {
+    std::vector<unsigned char> data = getStringDescriptorRaw(0, 0);
+    //data contains the following information
+    //Byte Offset     Details
+    //   0            Length of descriptor in bytes
+    //   1            Special 0x03 marker for string descriptor
+    // 2-3            Language 0
+    // 4-5            Language 1
+    // ...
+
+    if (2 * (i + 1) + 1 >= data.size())
+      throw std::runtime_error("getLanguageCode index out of range");
+
+    //Read the requested language value
+    return (data[2 * (i + 1)] << 8) | data[2 * (i + 1) + 1];
+  }
+
+  std::wstring getStringDescriptor(uint8_t desc_index, uint16_t lang_index)
+  {
+    std::vector<unsigned char> data = getStringDescriptorRaw(desc_index, lang_index);
+    
+    std::wstring retval;
+    retval.resize((data.size() - 2) / 2);
+    for (size_t i(0); i < (data.size() - 2) / 2; ++i)
+      retval[i] = *reinterpret_cast<uint16_t*>(&data[2*i+2]);
+    return retval;
+  }
+
 private:
+
+  std::vector<unsigned char> getStringDescriptorRaw(uint8_t desc_index, uint16_t lang_index)
+  {
+    std::vector<unsigned char> data(1);
+    //We only read the first byte, just to get the size of the whole packet
+    int bytes_written = libusb_get_string_descriptor(_devHandle, desc_index, lang_index, &data[0], 1);
+    
+    if (bytes_written < 0)
+      throw std::runtime_error("Failed to obtain string descriptor size");
+    
+    if (data[0] < 0)
+      throw std::runtime_error("String descriptor has negative size");      
+
+    int packetSize = data[0];
+
+    //Now we can request the whole packet
+    data.resize(packetSize);
+    bytes_written = libusb_get_string_descriptor(_devHandle, desc_index, lang_index, 
+						 &data[0], packetSize);
+    
+    if (bytes_written < 0)
+      throw std::runtime_error("Failed to obtain string descriptor");
+
+    if (data[0] != bytes_written)
+      throw std::runtime_error("Bytes written and packet size mismatch");
+
+    return data;
+  }
+
   libusb_device_handle *_devHandle;
   std::vector<int> _claimedInterfaces;
   std::vector<int> _kernelClaimedInterfaces;
