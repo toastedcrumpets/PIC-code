@@ -2,27 +2,52 @@
 #include "usbpp.hpp"
 #include <memory>
 
+void pause(std::string message)
+{
+  std::cout << "\n" << message << " Press enter to continue:";
+  char a = '0';
+  while (a != '\n') std::cin.get(a);
+}
+
+void bandwidthTest(unsigned char mode, USB::DeviceHandle& devhandle)
+{
+    std::vector<unsigned char> buffer(64);
+    timespec acc_tstartTime, acc_tendTime;
+    
+    size_t packetsSent = 2000;
+    buffer[0] = mode;
+
+    clock_gettime(CLOCK_MONOTONIC, &acc_tstartTime);
+    for (size_t i(0); i < packetsSent; ++i)
+      {
+	//Write it out
+	devhandle.syncBulkTransfer(1 | USB::OUT, buffer, 5000);
+	//Read it back
+	devhandle.syncBulkTransfer(1 | USB::IN, buffer, 5000);
+      }
+    
+    clock_gettime(CLOCK_MONOTONIC, &acc_tendTime);
+    double bytesPerSec = packetsSent * 64
+      / (double(acc_tendTime.tv_sec) + 1e-9 * double(acc_tendTime.tv_nsec)
+	 - double(acc_tstartTime.tv_sec) - 1e-9 * double(acc_tstartTime.tv_nsec));
+
+    std::cout << "\nManaged to read (and write) at " << bytesPerSec / 1024 << " kB / s";
+}
+
 int main(int argc, char *argv[])
 {
   try {
-    USB usbstate;
+    USB::Context usbstate;
   
-    usbstate.setDebug();
-  
-    std::vector<USBDevice> devices = usbstate.getDevices();
+    std::vector<USB::Device> devices = usbstate.getDevices();
 
-    USBDevice dev;
-    for (std::vector<USBDevice>::const_iterator iPtr = devices.begin();
+    USB::Device dev;
+    for (std::vector<USB::Device>::const_iterator iPtr = devices.begin();
 	 iPtr != devices.end(); ++iPtr)
       {
-	USBDeviceDescriptor desc = iPtr->getDeviceDescriptor();
-	if ((desc.getDeviceClass() == 0x00)
-	    && (desc.getVendorID() == 0x04D8)	
-	    && (desc.getProductID() == 0x0204))
-	  {
-	    dev = *iPtr;
-	    break;
-	  }
+	USB::DeviceDescriptor desc = iPtr->getDeviceDescriptor();
+	if ((desc.getVendorID() == 0x04D8) && (desc.getProductID() == 0x0204))
+	  { dev = *iPtr; break; }
       }
     
     if (!dev)
@@ -33,60 +58,44 @@ int main(int argc, char *argv[])
 
     std::cout << "\nFound USB device!";
     
-    USBDeviceHandle devhandle(dev);
-
+    //Initialising the device
+    USB::DeviceHandle devhandle(dev);
     devhandle.setConfiguration(1);
     devhandle.claimInterface(0);
 
-    std::cout << "\nClaimed interface, press enter to toggle LED";
-    char a = '0';
-    while (a != '\n')     
-      std::cin.get(a);
+    std::vector<unsigned char> buffer(64);
 
-    {
-      std::vector<unsigned char> OutputPacketBuffer(64);
-      OutputPacketBuffer[0] = 0x80;
-      devhandle.syncBulkTransfer(0x01, OutputPacketBuffer, 5000);
-    }
+    pause("Claimed Interface, toggling LED");
+    buffer[0] = 0x80;
+    devhandle.syncBulkTransfer(1 | USB::OUT, buffer, 5000);
 
-    std::cout << "\nToggled LED, press enter to toggle again";
-    a = '0';
-    while (a != '\n')     
-      std::cin.get(a);    
-
-    {
-      std::vector<unsigned char> OutputPacketBuffer(64);
-      OutputPacketBuffer[0] = 0x80;
-      devhandle.syncBulkTransfer(0x01, OutputPacketBuffer, 5000);
-    }
+    pause("LED toggled once, toggling again");
+    devhandle.syncBulkTransfer(1 | USB::OUT, buffer, 5000);
 
     std::cout << "\nToggled LED";
-    
+
+    pause("Performing writeback bandwidth test, with PIC buffer-buffer copy");
+    bandwidthTest(0x82, devhandle);
+
+    pause("Performing writeback bandwidth test, without copy");
+    bandwidthTest(0x83, devhandle);
+
+    std::cout << "\n";
     while (1)
       {
-	std::cout << "\nPress enter to read the button status";
-	a = '0';
-	while (a != '\n')
-	  std::cin.get(a);
-	
-	{
-	  //First request the status read
-	  std::vector<unsigned char> OutputPacketBuffer(64);
-	  OutputPacketBuffer[0] = 0x81;
-	  devhandle.syncBulkTransfer(0x01, OutputPacketBuffer, 5000);
-	  std::cout << "\nSent request packet" << std::endl;
+	//First request the status read
+	buffer[0] = 0x81;
+	devhandle.syncBulkTransfer(1 | USB::OUT, buffer, 5000);
 
-	  //Now read the status packet
-	  std::vector<unsigned char> InputPacketBuffer(64);
-	  devhandle.syncBulkTransfer(0x81, InputPacketBuffer, 5000);
-	  
-	  if (InputPacketBuffer[1] == 0x01)
-	    std::cout << "\nButton is up!";
-	  else
-	    std::cout << "\nButton is down!";
-	}
-      }
-    
+	//Now read the status packet
+	devhandle.syncBulkTransfer(1 | USB::IN, buffer, 5000);
+	
+	std::cout << "\rButton is " << ((buffer[1] == 0x01) ? "UP  " : "DOWN" )
+		  << " AD val is " << *((uint16_t*)(&buffer[2]))
+		  << "    ";
+
+	std::cout.flush();
+      }    
   }
   catch (std::exception& err)
     {

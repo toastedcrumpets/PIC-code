@@ -5,17 +5,17 @@
 int main(int argc, char *argv[])
 {
   try {
-    USB usbstate;
+    USB::Context usbstate;
   
     usbstate.setDebug();
   
-    std::vector<USBDevice> devices = usbstate.getDevices();
+    std::vector<USB::Device> devices = usbstate.getDevices();
 
-    for (std::vector<USBDevice>::const_iterator iPtr = devices.begin();
+    for (std::vector<USB::Device>::const_iterator iPtr = devices.begin();
 	 iPtr != devices.end(); ++iPtr)
       {
-	USBDeviceHandle handle(*iPtr);
-	USBDeviceDescriptor desc = iPtr->getDeviceDescriptor();
+	USB::DeviceHandle handle(*iPtr);
+	USB::DeviceDescriptor desc = iPtr->getDeviceDescriptor();
 	std::cout << "Device Class " << (int)desc.getDeviceClass()
 		  << ", BusNo. " << (int)iPtr->getBusNumber()
 		  << ", Address " << (int)iPtr->getDeviceAddress()
@@ -36,7 +36,7 @@ int main(int argc, char *argv[])
 
 	for (size_t c(0); c < desc.getConfigCount(); ++c)
 	  {
-	    USBConfigDescriptor cdesc = iPtr->getConfigDescriptor(c);
+	    USB::ConfigDescriptor cdesc = iPtr->getConfigDescriptor(c);
 	    std::cout << "\n  Interfaces " << cdesc.getInterfaceCount();
 
 	    for (size_t i(0); i < cdesc.getInterfaceCount(); ++i)
