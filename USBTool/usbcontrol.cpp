@@ -81,20 +81,35 @@ int main(int argc, char *argv[])
     bandwidthTest(0x83, devhandle);
 
     std::cout << "\n";
+    double updaterate = 0;
+
+    timespec acc_tstartTime;
     while (1)
       {
-	//First request the status read
-	buffer[0] = 0x81;
-	devhandle.syncBulkTransfer(1 | USB::OUT, buffer, 5000);
-
-	//Now read the status packet
-	devhandle.syncBulkTransfer(1 | USB::IN, buffer, 5000);
+	clock_gettime(CLOCK_MONOTONIC, &acc_tstartTime);
 	
-	std::cout << "\rButton is " << ((buffer[1] == 0x01) ? "UP  " : "DOWN" )
-		  << " AD val is " << *((uint16_t*)(&buffer[2]))
-		  << "    ";
-
-	std::cout.flush();
+	const size_t loops = 1000;
+	for (size_t i(0); i < loops; ++i)
+	  {
+	    //First request the status read
+	    buffer[0] = 0x81;
+	    devhandle.syncBulkTransfer(1 | USB::OUT, buffer, 5000);
+	    
+	    //Now read the status packet
+	    devhandle.syncBulkTransfer(1 | USB::IN, buffer, 5000);
+	    
+	    std::cout << "\rButton is " << ((buffer[1] == 0x01) ? "UP  " : "DOWN" )
+		      << " AD val is " << *((uint16_t*)(&buffer[2]))
+		      << " updates/s = " << updaterate
+		      << "     ";
+	    
+	    std::cout.flush();
+	  }
+	timespec acc_tendTime;
+	clock_gettime(CLOCK_MONOTONIC, &acc_tendTime);
+	updaterate = loops
+	  / (double(acc_tendTime.tv_sec) + 1e-9 * double(acc_tendTime.tv_nsec)
+	     - double(acc_tstartTime.tv_sec) - 1e-9 * double(acc_tstartTime.tv_nsec));
       }    
   }
   catch (std::exception& err)
