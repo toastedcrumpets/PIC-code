@@ -5,7 +5,7 @@
 	goto init
 
  cblock 0x00
-LEDTMRH,LEDTMRL,LEDTMRSCALER, FILE_L, FILE_H, NMEA_chars_written
+LEDTMRH,LEDTMRL,LEDTMRSCALER, FILE_L, FILE_H, NMEA_chars_written, WREG_LOWPR_SAVE, STATUS_LOWPR_SAVE
  endc
 
 
@@ -37,17 +37,23 @@ LEDTMRH,LEDTMRL,LEDTMRSCALER, FILE_L, FILE_H, NMEA_chars_written
 
  ;Low priority interrupt (LED ticker)
  ;Divides the tick rate by 8 before applying it to the LED
+ ;This code is used everywhere, so it must be state safe! Save everything you touch
  org 0x000018
-	movff LEDTMRH,TMR3H
-	movff LEDTMRL,TMR3L
+	movff WREG, WREG_LOWPR_SAVE
+	movff STATUS, STATUS_LOWPR_SAVE
 
-	bcf PIR2,TMR3IF
-	movlw b'00000111'
+	movff LEDTMRH,TMR3H ;SAFE, does not affect any status reg's
+	movff LEDTMRL,TMR3L ;SAFE, does not affect any status reg's
+
+	bcf PIR2,TMR3IF ;SAFE, does not affect any status reg's
+	movlw b'00000111' ;UNSAFE, changes WREG
 	andwf LEDTMRSCALER,F
 
 	dcfsnz LEDTMRSCALER,F
 	btg LED
 
+	movff WREG_LOWPR_SAVE, WREG
+	movff STATUS_LOWPR_SAVE, STATUS
 	retfie
 
  include "macros.inc"
@@ -69,11 +75,16 @@ SET_LED_FLASH_RATE macro _count
 	bsf PIE2,TMR3IE
 	endm
 
- #define OSC_SPEED .16000000
+; #define OSC_SPEED .16000000
+; ;4800 baud
+; #define BRGVAL .833
+; 57.6K
+; #define BRGVAL .68
+
+ #define OSC_SPEED .4000000
  ;4800 baud
- #define BRGVAL .833
- ;57.6K
- ;#define BRGVAL .68
+ #define BRGVAL .208
+
 
  #define INSTR_SPEED (OSC_SPEED/.4)
  ;The 128 comes from the software divider (/8) and the hardware divider (/8)
@@ -117,7 +128,7 @@ init
 	bcf 0x12+LED2
 	bcf LED2
 	;///Setup the oscillator
-	movlw b'01110000'
+	movlw b'01010000'
 	movwf OSCCON
 
 	;//Let the Oscillator stabilise
@@ -149,25 +160,21 @@ init
 	bsf 0x12+SD_DO 
 	bcf 0x12+SD_CS
 
-	call SD_init
-	xorlw 0x00
-	bz init_filesystem
-
-	;Try again
-	call SD_init
-	xorlw 0x00
-	bz init_filesystem
-
-	;One last time
+	LED_FLASH_20hz
+soft_reset
 	call SD_init
 	TSTFSZ WREG
-	bra SD_fail
+	bra soft_reset
+
+	LED_FLASH_5hz
 
 init_filesystem
 	call FAT_init
 	TSTFSZ WREG
-	bra SD_fail
-	
+	bra soft_reset
+
+	LED_FLASH_0.5hz
+
 open_logfile
 	call FAT_load_root
 
@@ -195,7 +202,7 @@ open_logfile
 	call FAT_load_filename_TBLPTR
 	call FAT_open_entry
 	xorlw .0
-	bnz SD_fail
+	bnz soft_reset
 
 	call convert_cluster_in_addr
 	SD_load_buffer_FSR 2,0x000
@@ -203,7 +210,7 @@ open_logfile
 	
 	call SD_write
 	xorlw .0
-	bnz SD_fail
+	bnz soft_reset
 
 	bra open_logfile
 
@@ -302,12 +309,9 @@ sentance_loop
 
 	bra main_restart
 
-SD_fail
-	LED_FLASH_5hz
-	bra $
 
 FAT_fail
-	LED_FLASH_20hz
+	LED_FLASH_5hz
 	bra $
 
  end

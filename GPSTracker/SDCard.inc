@@ -32,8 +32,6 @@ SD_mode
 
 
 ;/////////////////////SD STANDARD COMMANDS
-;//No start bit (a 0), useful for generating clock cycles
-SD_CMD_Blank db 0xFF,0xFF,0xFF,0xFF,0xFF,0xFF
 ;//Reset the card, also detects SPI mode if CS is low and is the first reset
 SD_CMD0 db 0x40,0x00,0x00,0x00,0x00,0x95
 ;//High capacity mode select (off)
@@ -42,15 +40,15 @@ SD_CMD0 db 0x40,0x00,0x00,0x00,0x00,0x95
 SD_CMD8 db 0x48,0x00,0x00,0x01,0xAA,0x87
 
 ;//Obtains the OCR register of the card
-SD_CMD55 db 0x77,0x00,0x00,0x00,0x00,0x65
-
-;//Obtains the OCR register of the card
 SD_CMD58 db 0x7A,0x00,0x00,0x00,0x00,0xFD
 
 ;//Disable CRC mode
 ;SD_CMD59 db 0x7B,0x00,0x00,0x00,0x00,0x91
 
+
 ;//////////////////////APPLICATION COMMANDS
+;//Enable Application command mode, marks the next command as a ACMD
+SD_CMD55 db 0x77,0x00,0x00,0x00,0x00,0x65
 ;//Lets the card know that HCS is available on the host 
 SD_ACMD41 db 0x69,0x40,0x00,0x00,0x00,0x77
 
@@ -84,24 +82,9 @@ SD_blank_buffer_loop
 
 	return
 
-SD_blank_toggles
-	rcall SD_blank_toggles_byte
-	rcall SD_blank_toggles_byte
-	rcall SD_blank_toggles_byte
-	rcall SD_blank_toggles_byte
-	rcall SD_blank_toggles_byte
-	rcall SD_blank_toggles_byte
-	rcall SD_blank_toggles_byte
-	rcall SD_blank_toggles_byte
-	rcall SD_blank_toggles_byte
-	rcall SD_blank_toggles_byte
-	rcall SD_blank_toggles_byte
-
-	goto SD_blank_toggles_byte
-
 SD_blank_toggles_byte
-	LoadTable SD_CMD_Blank
-	goto SD_Send_Cmd
+	movlw 0xff
+	goto SD_tranceive
 
 ;///////////////////////////////////////////////////
 SD_init
@@ -117,8 +100,7 @@ SD_init
 	bcf SD_HC
 
 	;Send some toggles to wake the card up (it needs alot!)
-	call SD_blank_toggles
-	call SD_blank_toggles
+	rcall SD_blank_toggles_byte
 
 	;Send CMD0, this switches into SPI mode if the CS is low!
 	;So set CS low
@@ -128,13 +110,16 @@ SD_init
 	call SD_Send_Cmd
 
 	call SD_Recv_R1
-	;Check if it was successful
-	xorlw 0x01
+
+	;Now check if there was any error at all, we allow non-idle states (due to previous initialization)
+	andlw 0xFE
 	btfss STATUS,Z
 	retlw .1
 
-	;More toggles to let the initialisation occur
-	call SD_blank_toggles
+	bsf SD_CS
+	;Let the SD card note the change of CS
+	rcall SD_blank_toggles_byte
+	bcf SD_CS
 
 	;Now send CMD8 to test if it's a v2.00+ SD card (possible HC)
 	LoadTable SD_CMD8
@@ -156,11 +141,11 @@ SD_init
 	
 	;Now recv the rest of the R7 response
 	;The following bytes have the command version and reserved bits in them
-	movlw 0xff
+	movlw 0xFF
 	call SD_tranceive
-	movlw 0xff
+	movlw 0xFF
 	call SD_tranceive
-	movlw 0xff
+	movlw 0xFF
 	call SD_tranceive
 	;WREG now contains 4 reserved upper bits and 4 bits on the voltage
 	andlw 0x0F
@@ -169,7 +154,7 @@ SD_init
 	retlw .1
 
 	;Now for the test pattern (0xAA)
-	movlw 0xff
+	movlw 0xFF
 	call SD_tranceive
 	xorlw 0xAA
 	tstfsz WREG
@@ -178,10 +163,12 @@ SD_init
 	;Ok, we have a v2.0 card, lets rejoin the v1 initialisation
 
 SD_init_CMD58_1 ;Here we're faking being cared about the card's supported voltages
-	;More toggles, the card needs lots of response time
-	call SD_blank_toggles
-	call SD_blank_toggles
+	bsf SD_CS
 
+	;Must let the SD card note the change of CS
+	rcall SD_blank_toggles_byte
+
+	bcf SD_CS
 	;Get the OCR register
 	LoadTable SD_CMD58
 	call SD_Send_Cmd
@@ -190,7 +177,7 @@ SD_init_CMD58_1 ;Here we're faking being cared about the card's supported voltag
 	tstfsz WREG
 	retlw .1
 
-	;We should recieve an R3 response, first byte is R1, next 4 are the OCR. bits
+	;We should recieve an R3 response, previous byte was R1, next 4 are the OCR bits
 	movlw 0xff
 	call SD_tranceive
 	;[24:29] are reserved,[30] is the card capacity,[31] is the power up status bit!
@@ -202,26 +189,28 @@ SD_init_CMD58_1 ;Here we're faking being cared about the card's supported voltag
 	call SD_tranceive
 	;[0:14] are reserved, [15:23] are voltage info (ignored)
 
-SD_init_ACMD41
-	call SD_blank_toggles
-	call SD_blank_toggles
 
+SD_init_ACMD41
+	bsf SD_CS
+	;Must let the SD card note the change of CS
+	rcall SD_blank_toggles_byte
+
+	bcf SD_CS
 	LoadTable SD_CMD55
 	call SD_Send_Cmd
 	call SD_Recv_R1
-	nop
+	bsf SD_CS
 	xorlw 0x01
 	tstfsz WREG
 	retlw .1
 
-	call SD_blank_toggles
-	call SD_blank_toggles
-
+	;Must let the SD card note the change of CS
+	rcall SD_blank_toggles_byte
+	bcf SD_CS
 	LoadTable SD_ACMD41
 	call SD_Send_Cmd
 	call SD_Recv_R1
-	nop
-	
+	bsf SD_CS
 	;If the card returns 0 then it's initialised
 	xorlw 0x00
 	bz SD_init_CMD58_2
@@ -238,10 +227,9 @@ SD_init_CMD58_2
 	btfss SD_ver2.0
 	bra SD_init_end
 
-	;More toggles, the card needs lots of response time
-	call SD_blank_toggles
-	call SD_blank_toggles
-
+	bsf SD_CS
+	rcall SD_blank_toggles_byte
+	bcf SD_CS
 	;Get the OCR register
 	LoadTable SD_CMD58
 	call SD_Send_Cmd
@@ -249,7 +237,7 @@ SD_init_CMD58_2
 	tstfsz WREG
 	retlw .1
 
-	;We should recieve an R3 response, first byte is R1, next 4 are the OCR. bits
+	;We should recieve an R3 response, first byte was R1, next 4 are the OCR. bits
 	movlw 0xff
 	call SD_tranceive
 	nop
@@ -272,7 +260,7 @@ SD_init_CMD58_2
 	nop
 	movlw 0xff
 	call SD_tranceive
-	nop
+
 	;[0:14] are reserved, [15:23] are voltage info (ignored)
 	
 SD_init_end
@@ -433,12 +421,10 @@ SD_transmit_wrapup
 ;Read a block into memory
 SD_read
 	bsf SD_CS
-	;Select the device
+	rcall SD_blank_toggles_byte
 	bcf SD_CS
 
 	;Start the command
-	movlw 0xFF
-	call SD_tranceive
 	movlw 0x51
 	call SD_tranceive
 
