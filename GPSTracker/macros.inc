@@ -97,9 +97,10 @@ EEPROM_write macro addr, input
 
 
  cblock
-D0,D1,D2,D3,D4
+D0,D1,D2,D3,D4,
 NUMLO,NUMHI
  endc
+
 dec2bin16
     movf  D1,W        ; (D1 + D3) * 2
     addwf D3,W

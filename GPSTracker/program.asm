@@ -5,7 +5,7 @@
 	goto init
 
  cblock 0x00
-LEDTMRH,LEDTMRL,LEDTMRSCALER, FILE_L, FILE_H, NMEA_chars_written, WREG_LOWPR_SAVE, STATUS_LOWPR_SAVE
+LEDTMRH,LEDTMRL,LEDTMRSCALER, FILE_L, FILE_H, NMEA_chars_written, WREG_LOWPR_SAVE, STATUS_LOWPR_SAVE, LOGCounter:2
  endc
 
 
@@ -75,15 +75,16 @@ SET_LED_FLASH_RATE macro _count
 	bsf PIE2,TMR3IE
 	endm
 
-; #define OSC_SPEED .16000000
-; ;4800 baud
-; #define BRGVAL .833
+ #define OSC_SPEED .16000000
+ ;4800 baud
+ #define BRGVAL .833
 ; 57.6K
 ; #define BRGVAL .68
 
- #define OSC_SPEED .4000000
- ;4800 baud
- #define BRGVAL .208
+; Slower clock for monitoring the card
+; #define OSC_SPEED .4000000
+; ;4800 baud
+; #define BRGVAL .208
 
 
  #define INSTR_SPEED (OSC_SPEED/.4)
@@ -128,7 +129,7 @@ init
 	bcf 0x12+LED2
 	bcf LED2
 	;///Setup the oscillator
-	movlw b'01010000'
+	movlw b'01110000'
 	movwf OSCCON
 
 	;//Let the Oscillator stabilise
@@ -173,20 +174,54 @@ init_filesystem
 	TSTFSZ WREG
 	bra soft_reset
 
-	LED_FLASH_0.5hz
+	;File name
+	movlw '0'
+	movwf entryname
+	movwf entryname+.1
+	movwf entryname+.2
+	movwf entryname+.3
+	movwf entryname+.4
+	movwf entryname+.5
+	movwf entryname+.6
+	movwf entryname+.7
+
+	;File extension
+	movlw 'L'
+	movwf entryname+.8
+	movlw 'O'
+	movwf entryname+.9
+	movlw 'G'
+	movwf entryname+.10
 
 open_logfile
+	movlw .1
+	addwf entryname+7,F
+	movlw ':'
+	xorwf entryname+7,W
+	bnz open_logfile_next	
+
+	movlw '0'
+	movwf entryname+7
+	movlw .1
+	addwf entryname+6,f
+	movlw ':'
+	xorwf entryname+6,W
+	bnz open_logfile_next
+
+	movlw '0'
+	movwf entryname+6
+	movlw .1
+	addwf entryname+5,F
+
+open_logfile_next
 	call FAT_load_root
 
-	LoadTable logfile
-	call FAT_load_filename_TBLPTR
+	;Try to open the file
 	call FAT_open_entry
 	xorlw .0
-	bz Log_File_Open
+	bz open_logfile ;If it succeded, then loop to open a different file!
 
-	;File Failed to open, must create it I guess
-	LoadTable logfile
-	call FAT_load_filename_TBLPTR
+	;File Failed to open, create it!
 	;Set the entry as a file
 	clrf FAT_newfile_attrib
 
@@ -195,11 +230,9 @@ open_logfile
 
 	call FAT_new_entry
 	xorlw .0
-	bnz FAT_fail
+	bnz soft_reset
 
 	;Now open the logfile and blank the first sector
-	LoadTable logfile
-	call FAT_load_filename_TBLPTR
 	call FAT_open_entry
 	xorlw .0
 	bnz soft_reset
@@ -212,9 +245,11 @@ open_logfile
 	xorlw .0
 	bnz soft_reset
 
-	bra open_logfile
+	;Reopen the log file at the start
+	call FAT_open_entry
+	xorlw .0
+	bnz soft_reset
 
-Log_File_Open
 	;So now we have a file open and we should load it and seek to its end
 	call convert_cluster_in_addr
 	call SD_init_seek
@@ -244,7 +279,9 @@ init_UART
 
 	bsf  RCSTA,CREN
 
-	bcf LED
+	;Stop the whole flashing thing
+	bcf PIE2,TMR3IE
+	bcf LED ;Set the blue fix light to off
 	bsf LED2
 	
 main_restart
@@ -280,7 +317,7 @@ sentance_loop
 
 	call SD_write_char
 	TSTFSZ WREG
-	bra FAT_fail
+	bra soft_reset
 
 	decfsz Sentence_Bytes_Rec
 	bra sentance_loop
@@ -289,29 +326,24 @@ sentance_loop
 	movlw '*'
 	call SD_write_char
 	TSTFSZ WREG
-	bra FAT_fail
+	bra soft_reset
 
 	movf NMEA_recv_checksum_H,w
 	call SD_write_char
 	TSTFSZ WREG
-	bra FAT_fail
+	bra soft_reset
 
 	movf NMEA_recv_checksum_L,w
 	call SD_write_char
 	TSTFSZ WREG
-	bra FAT_fail
+	bra soft_reset
 
 	;Write a newline
 	movlw '\n'
 	call SD_write_char
 	TSTFSZ WREG
-	bra FAT_fail
+	bra soft_reset
 
 	bra main_restart
-
-
-FAT_fail
-	LED_FLASH_5hz
-	bra $
 
  end
